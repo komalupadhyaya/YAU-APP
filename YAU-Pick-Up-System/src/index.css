@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body {
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+  }
+
+  #root {
+    width: 100%;
+    min-height: 100vh;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-white/95 backdrop-blur-md shadow-xl border border-white/20;
+  }
+
+  .gradient-bg {
+    background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 50%, #93c5fd 100%);
+    background-attachment: fixed;
+    background-size: cover;
+    background-repeat: no-repeat;
+    width: 100vw;
+    min-height: 100vh;
+    position: relative;
+  }
+
+  .gradient-text {
+    background: linear-gradient(135deg, #3b82f6, #60a5fa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* layering helpers (same idea as admin) */
+  .z-dropdown {
+    z-index: 1000;
+  }
+  .z-modal {
+    z-index: 2000;
+  }
+  .z-tooltip {
+    z-index: 3000;
+  }
+
+  @media (max-width: 768px) {
+    .gradient-bg {
+      background-attachment: scroll;
+      min-height: 100dvh;
+    }
+  }
+}
+

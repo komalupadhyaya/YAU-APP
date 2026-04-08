@@ -1,0 +1,94 @@
+/* yau-admin-app-registration\src\index.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden; /* Prevent horizontal scroll */
+  }
+
+  #root {
+    width: 100%;
+    min-height: 100vh;
+  }
+}
+
+.input {
+  @apply w-full px-4 py-3 border border-gray-300 rounded-lg 
+         focus:outline-none focus:ring-2 focus:ring-blue-500 
+         focus:border-transparent transition-all;
+}
+
+@layer components {
+  .glass {
+    @apply bg-white/95 backdrop-blur-md shadow-xl border border-white/20;
+  }
+  
+  .gradient-bg {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-attachment: fixed; /* Keeps background fixed during scroll */
+    background-size: cover;
+    background-repeat: no-repeat;
+    width: 100vw; /* Full viewport width */
+    min-height: 100vh; /* Full viewport height */
+    position: relative;
+  }
+  
+  .gradient-text {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Z-index hierarchy for proper layering */
+  .z-dropdown {
+    z-index: 1000;
+  }
+
+  .z-modal {
+    z-index: 2000;
+  }
+
+  .z-tooltip {
+    z-index: 3000;
+  }
+
+  /* Mobile-specific background fixes */
+  @media (max-width: 768px) {
+    .gradient-bg {
+      background-attachment: scroll; /* Fixed attachment can cause issues on mobile */
+      min-height: 100dvh; /* Use dynamic viewport height on mobile */
+    }
+  }
+
+  /* Ensure dropdowns appear above other content */
+  .dropdown-menu {
+    z-index: 1000;
+    position: absolute;
+  }
+
+  /* Fix for any potential stacking context issues */
+  .main-content {
+    position: relative;
+    z-index: 1;
+  }
+
+  .header-section {
+    position: relative;
+    z-index: 10;
+  }
+}
+
+
+
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+}
