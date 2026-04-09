@@ -13,10 +13,10 @@ const getEnvVar = (key, defaultValue = null) => {
 const STRIPE_SECRET_KEY = getEnvVar('STRIPE_SECRET_KEY');
 
 if (!STRIPE_SECRET_KEY) {
-  throw new Error('STRIPE_SECRET_KEY environment variable is required. Set it in .env file for local development');
+  console.warn("Stripe key missing - skipping Stripe init");
 }
 
-const stripe = require("stripe")(STRIPE_SECRET_KEY);
+const stripe = STRIPE_SECRET_KEY ? require("stripe")(STRIPE_SECRET_KEY) : null;
 
 const STRIPE_CONFIG = {
   // Uniform pricing - $75.00 in cents

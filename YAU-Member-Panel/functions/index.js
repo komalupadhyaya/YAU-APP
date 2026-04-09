@@ -24,13 +24,13 @@ const getEnvVar = (key, defaultValue = null) => {
 // Initialize Firebase Admin
 if (admin.apps.length === 0) {
   try {
-    const serviceAccount = require('./serviceAccountKey.json');
+    const serviceAccount = require('/etc/secrets/serviceAccountKey.json');
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount)
     });
-    console.log('✅ Initialized Firebase Admin with Service Account');
+    console.log('✅ Initialized Firebase Admin with Service Account from /etc/secrets');
   } catch (e) {
-    console.warn('⚠️ Could not load ./serviceAccountKey.json. Falling back to default initialization.', e.message);
+    console.warn('⚠️ /etc/secrets/serviceAccountKey.json not found or invalid. Falling back to default initialization.', e.message);
     admin.initializeApp();
   }
 }
@@ -66,6 +66,10 @@ app.post("/webhook", express.raw({type: "application/json"}), async (req, res) =
   const sig = req.headers["stripe-signature"];
   const {stripe} = require("./src/config/stripe");
   const PaymentService = require("./src/services/paymentService");
+
+  if (!stripe) {
+    return res.status(500).json({error: "Stripe is not initialized due to missing secret key"});
+  }
 
   let event;
   try {
