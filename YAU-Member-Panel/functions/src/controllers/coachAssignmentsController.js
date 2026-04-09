@@ -35,6 +35,9 @@ class CoachAssignmentsController {
 
       let smsSuccess = false;
       let emailSuccess = false;
+      
+      let smsErrorDetails = 'Not attempted';
+      let emailErrorDetails = 'Not attempted';
 
       // Send SMS
       if (coach.phoneNumber) {
@@ -42,8 +45,11 @@ class CoachAssignmentsController {
           await twilioService.sendCoachAssignmentSMS(coach.phoneNumber, assignment);
           smsSuccess = true;
         } catch (smsErr) {
+          smsErrorDetails = smsErr.message || 'Unknown SMS error';
           console.error("SMS notification failed:", smsErr);
         }
+      } else {
+        smsErrorDetails = 'No phone number';
       }
 
       // Send Email
@@ -52,12 +58,15 @@ class CoachAssignmentsController {
           await EmailService.sendCoachAssignmentEmail(coach.email, coach.firstName, assignment);
           emailSuccess = true;
         } catch (emailErr) {
+          emailErrorDetails = emailErr.message || 'Unknown Email error';
           console.error("Email notification failed:", emailErr);
         }
+      } else {
+        emailErrorDetails = 'No email';
       }
 
       if (!smsSuccess && !emailSuccess) {
-        return res.status(500).json({ error: 'Both SMS and Email failed to send or coach lacks contact info.' });
+        return res.status(500).json({ error: `Failed to send notifications. Email Error: ${emailErrorDetails} | SMS Error: ${smsErrorDetails}` });
       }
 
       return res.status(200).json({ 
