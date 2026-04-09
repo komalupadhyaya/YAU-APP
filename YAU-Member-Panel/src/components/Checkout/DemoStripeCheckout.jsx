@@ -6,7 +6,11 @@ import { APIClient } from '../../firebase/ApiClient';
 import { FaCreditCard, FaLock, FaCheck, FaTimes, FaApplePay, FaGooglePay, FaSpinner } from 'react-icons/fa';
 import { completeRegistrationAfterPayment } from '../../firebase/apis/postRegistration';
 
-const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY);
+const STRIPE_KEY = process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY;
+if (!STRIPE_KEY) {
+  console.error("❌ STRIPE_PUBLISHABLE_KEY is missing from environment variables!");
+}
+const stripePromise = loadStripe(STRIPE_KEY);
 
 // Real Stripe Checkout Form
 const StripeCheckoutForm = ({ planType, planDetails, amount, user, onSuccess, onError, formData, childrenCount }) => {

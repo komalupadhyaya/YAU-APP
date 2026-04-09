@@ -6,7 +6,11 @@ import { Elements, CardElement, useStripe, useElements } from '@stripe/react-str
 import { APIClient } from '../../../firebase/ApiClient';
 import { FaCreditCard, FaLock, FaSpinner } from 'react-icons/fa';
 
-const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY);
+const STRIPE_KEY = process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY;
+if (!STRIPE_KEY) {
+  console.error("❌ STRIPE_PUBLISHABLE_KEY is missing from environment variables!");
+}
+const stripePromise = loadStripe(STRIPE_KEY);
 
 const StripeCheckoutForm = ({ amount, description, onSuccess, onError }) => {
   const stripe = useStripe();
