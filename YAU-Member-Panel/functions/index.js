@@ -1,6 +1,4 @@
-const functions = require("firebase-functions");
 const admin = require("firebase-admin");
-const { onSchedule } = require("firebase-functions/v2/scheduler");
 const express = require("express");
 const helmet = require("helmet");
 const cors = require('cors');
@@ -10,7 +8,7 @@ require('dotenv').config();
 
 // Using .env file approach for both local and deployment
 
-// Safe environment helper for Firebase Functions v2
+// Safe environment helper
 const getEnvVar = (key, defaultValue = null) => {
   try {
     if (process && process.env && process.env[key]) {
@@ -25,25 +23,17 @@ const getEnvVar = (key, defaultValue = null) => {
 
 // Initialize Firebase Admin
 if (admin.apps.length === 0) {
-  if (process.env.FUNCTIONS_EMULATOR === 'true') {
-    try {
-      const serviceAccount = require('../src/firebase/serviceAccountKey.json');
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
-      });
-      console.log('✅ Initialized Firebase Admin with Service Account (Emulator Mode)');
-    } catch (e) {
-      console.warn('⚠️ Could not load serviceAccountKey.json for emulator. Falling back to default initialization.', e.message);
-      admin.initializeApp();
-    }
-  } else {
+  try {
+    const serviceAccount = require('./serviceAccountKey.json');
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount)
+    });
+    console.log('✅ Initialized Firebase Admin with Service Account');
+  } catch (e) {
+    console.warn('⚠️ Could not load ./serviceAccountKey.json. Falling back to default initialization.', e.message);
     admin.initializeApp();
   }
 }
-
-// Scheduled jobs
-const { cleanupPickupSignouts } = require("./src/jobs/cleanupPickupSignouts");
-const { cleanupGameSchedules } = require("./src/jobs/cleanupGameSchedules");
 
 const app = express();
 
@@ -287,37 +277,7 @@ app.use("*", (req, res) => {
   });
 });
 
-/**
- * Daily cleanup: delete pickup signout records older than 60 days.
- *
- * Runs server-side in Firebase/Google infrastructure (no admin UI needed).
- * Default timezone can be overridden with TZ env var (e.g. "America/Los_Angeles").
- */
-exports.cleanupPickupSignoutsDaily = onSchedule(
-    {
-      schedule: "every day 02:00",
-      timeZone: getEnvVar("TZ", "America/Los_Angeles"),
-    },
-    async () => {
-      await cleanupPickupSignouts({ days: 60 });
-    }
-  );
-
-/**
- * Daily cleanup: delete game schedules older than 90 days.
- *
- * Collection: schedules
- * Age check: createdAt (Firestore Timestamp)
- */
-exports.cleanupGameSchedulesDaily = onSchedule(
-  {
-    schedule: "every day 02:10",
-    timeZone: getEnvVar("TZ", "America/Los_Angeles"),
-  },
-  async () => {
-    await cleanupGameSchedules({ days: 90 });
-  }
-);
-
-// Export function
-exports.apis = functions.https.onRequest(app);
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});

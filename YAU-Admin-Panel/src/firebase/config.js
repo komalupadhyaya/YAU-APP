@@ -28,9 +28,9 @@ export const API_CONFIG = {
   baseURL: process.env.NODE_ENV === "development"
     ? 'http://127.0.0.1:5001/yau-app/us-central1/apis'
     : 'https://us-central1-yau-app.cloudfunctions.net/apis',
-    
+
   endpoints: {
-      
+
     // Stripe endpoints
     stripe: {
       createPaymentIntent: '/stripe/create-payment-intent',
@@ -42,7 +42,7 @@ export const API_CONFIG = {
       getPlans: '/stripe/plans',
       getPaymentMethods: '/stripe/payment-methods'
     },
-    
+
     // Payment endpoints
     payments: {
       createRecord: '/payments/create-payment-record',
@@ -88,7 +88,7 @@ export const API_CONFIG = {
       deleteAllData: '/organization/bulk/all-data',
       externalSchedule: '/external_schedules',
       // deleteAllMatches: '/bulk/all-matches',
-      deleteMultipleMatches:'/external_schedules/bulk/matches'
+      deleteMultipleMatches: '/external_schedules/bulk/matches'
     },
 
     // Parent endpoints
@@ -184,24 +184,24 @@ export const API_CONFIG = {
       createPost: '/community/posts',
       updatePost: '/community/posts/:id',
       deletePost: '/community/posts/:id',
-      
+
       // Likes
       toggleLike: '/community/posts/:postId/like',
       getPostLikes: '/community/posts/:postId/likes',
-      
+
       // Comments
       addComment: '/community/posts/:postId/comments',
       getPostComments: '/community/posts/:postId/comments',
       deleteComment: '/community/comments/:commentId',
-      
+
       // Reports
       reportPost: '/community/posts/:postId/report',
       getReportedPosts: '/community/reported-posts',
-      
+
       // Analytics & Stats
       getStats: '/community/stats',
       getAnalytics: '/community/analytics',
-      
+
       // Bulk operations
       bulkUpdatePosts: '/community/posts/bulk-update'
     },
@@ -293,7 +293,7 @@ export const API_CONFIG = {
       export: '/analytics/export'
     },
 
-  admin: {
+    admin: {
       getAll: '/admins',
       getById: '/admins/:id',
       create: '/admins',
@@ -367,26 +367,26 @@ export const API_CONFIG = {
       exportCsv: '/uniforms/export/csv',
       getByParent: '/uniforms/parent/:parentId',
       getByStudent: '/uniforms/student/:studentId',
-      batchDelete:'/uniforms/batch-delete'
+      batchDelete: '/uniforms/batch-delete'
     },
     // timesheets endpoints
-    timesheets: { 
-      get: '/timesheets',        
-      create: '/timesheets',       
-      update: '/timesheets/{id}',  
-      delete: '/timesheets/{id}'   
+    timesheets: {
+      get: '/timesheets',
+      create: '/timesheets',
+      update: '/timesheets/{id}',
+      delete: '/timesheets/{id}'
     },
-      // Timesheet management endpoints
-  adminTimesheets: {
-    getAll: '/adminTimesheetRoutes/timesheets',
-    getByCoach: '/adminTimesheetRoutes/timesheets/coach/:coachId',
-    stats: '/adminTimesheetRoutes/timesheets/stats',
-    approve: '/adminTimesheetRoutes/timesheets/:id/approve',
-    reject: '/adminTimesheetRoutes/timesheets/:id/reject',
-    bulkApprove: '/adminTimesheetRoutes/timesheets/bulk-approve',
-    bulkReject: '/adminTimesheetRoutes/timesheets/bulk-reject',
-    export: '/adminTimesheetRoutes/timesheets/export'
-  },
+    // Timesheet management endpoints
+    adminTimesheets: {
+      getAll: '/adminTimesheetRoutes/timesheets',
+      getByCoach: '/adminTimesheetRoutes/timesheets/coach/:coachId',
+      stats: '/adminTimesheetRoutes/timesheets/stats',
+      approve: '/adminTimesheetRoutes/timesheets/:id/approve',
+      reject: '/adminTimesheetRoutes/timesheets/:id/reject',
+      bulkApprove: '/adminTimesheetRoutes/timesheets/bulk-approve',
+      bulkReject: '/adminTimesheetRoutes/timesheets/bulk-reject',
+      export: '/adminTimesheetRoutes/timesheets/export'
+    },
 
     // Pickup System endpoints
     pickup: {
@@ -467,7 +467,7 @@ export const API_CONFIG = {
 // Helper function to build complete URL
 export const buildApiUrl = (endpoint, params = {}) => {
   let url = `${API_CONFIG.baseURL}${endpoint}`;
-  
+
   // Replace URL parameters
   Object.keys(params).forEach(key => {
     // Encode to keep URLs valid (spaces, slashes, etc.)
@@ -475,7 +475,7 @@ export const buildApiUrl = (endpoint, params = {}) => {
     const encoded = encodeURIComponent(raw == null ? '' : String(raw));
     url = url.replace(`:${key}`, encoded);
   });
-  
+
   return url;
 };
 
@@ -483,7 +483,7 @@ export const buildApiUrl = (endpoint, params = {}) => {
 export const getEndpoint = (path) => {
   const pathParts = path.split('.');
   let endpoint = API_CONFIG.endpoints;
-  
+
   for (const part of pathParts) {
     if (endpoint[part]) {
       endpoint = endpoint[part];
@@ -491,7 +491,7 @@ export const getEndpoint = (path) => {
       throw new Error(`Endpoint not found: ${path}`);
     }
   }
-  
+
   return endpoint;
 };
 

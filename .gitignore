@@ -29,3 +29,5 @@ yarn-error.log*
 
 # Firebase Admin private key - NEVER commit this to version control
 src/firebase/serviceAccountKey.json
+serviceAccountKey.json
+
