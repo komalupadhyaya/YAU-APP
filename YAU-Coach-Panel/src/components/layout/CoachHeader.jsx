@@ -19,7 +19,7 @@ const CoachHeader = ({
       await signOutCoach();
       localStorage.removeItem('currentUser');
       localStorage.removeItem('coachUser');
-      navigate('/login');
+      window.location.href = '/login';
     } catch (error) {
       console.error('Sign out error:', error);
     }

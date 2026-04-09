@@ -37,7 +37,7 @@ class EmailService {
       console.log(`📧 Preparing to send password reset email to: ${email} and link is ${resetLink}`);
 
       // Create transporter
-      
+
 
       const displayName = firstName ? firstName : email.split("@")[0];
       const subject = "Reset Your YAU Member Panel Password";
@@ -97,18 +97,18 @@ If you continue to have problems, please contact support.
       `;
 
       // Send email using nodemailer
-      
+
 
       const info = await this.sendEmail({ to: email, subject: subject, html: htmlContent, text: typeof textContent !== "undefined" ? textContent : undefined });
-      if(!info.success) return { success: false, error: info.error };
+      if (!info.success) return { success: false, error: info.error };
       console.log(`✅ Password reset email sent successfully to: ${email}`);
-      
+
 
       return {
         success: true,
         message: "Password reset email sent successfully",
         email: email,
-        
+
       };
     } catch (error) {
       console.error("❌ Error sending password reset email:", error);
@@ -127,7 +127,7 @@ If you continue to have problems, please contact support.
       console.log(`📧 Preparing password reset confirmation email to: ${email}`);
 
       // Create transporter
-      
+
 
       const displayName = firstName ? firstName : email.split("@")[0];
       const subject = "Password Reset Successful - YAU Member Panel";
@@ -175,18 +175,18 @@ You can now log in with your new password.
       `;
 
       // Send email using nodemailer
-      
+
 
       const info = await this.sendEmail({ to: email, subject: subject, html: htmlContent, text: typeof textContent !== "undefined" ? textContent : undefined });
-      if(!info.success) return { success: false, error: info.error };
+      if (!info.success) return { success: false, error: info.error };
       console.log(`✅ Password reset confirmation email sent successfully to: ${email}`);
-      
+
 
       return {
         success: true,
         message: "Password reset confirmation email sent successfully",
         email: email,
-        
+
       };
     } catch (error) {
       console.error("❌ Error sending password reset confirmation email:", error);
@@ -204,7 +204,7 @@ You can now log in with your new password.
     try {
       console.log(`📧 Preparing member sign-up email to: ${email}`);
 
-      
+
 
       const displayName = firstName ? firstName : email.split("@")[0];
       const subject = "Welcome to YAU FUN";
@@ -249,18 +249,18 @@ Thank you for being part of the YAU community.
 © ${new Date().getFullYear()} YAU Sports. All rights reserved.
       `;
 
-      
+
 
       const info = await this.sendEmail({ to: email, subject: subject, html: htmlContent, text: typeof textContent !== "undefined" ? textContent : undefined });
-      if(!info.success) return { success: false, error: info.error };
+      if (!info.success) return { success: false, error: info.error };
       console.log(`✅ Member sign-up email sent successfully to: ${email}`);
-      
+
 
       return {
         success: true,
         message: "Member sign-up email sent successfully",
         email: email,
-        
+
       };
     } catch (error) {
       console.error("❌ Error sending member sign-up email:", error);
@@ -278,7 +278,7 @@ Thank you for being part of the YAU community.
     try {
       console.log(`📧 Preparing YAUTeamUp enrollment email to: ${email}`);
 
-      
+
 
       const subject = "Welcome to YAUTeamUp – Enrollment Submitted";
 
@@ -320,18 +320,18 @@ Thank you for choosing YAUTeamUp.
 © ${new Date().getFullYear()} YAUTeamUp. All rights reserved.
       `;
 
-      
+
 
       const info = await this.sendEmail({ to: email, subject: subject, html: htmlContent, text: typeof textContent !== "undefined" ? textContent : undefined });
-      if(!info.success) return { success: false, error: info.error };
+      if (!info.success) return { success: false, error: info.error };
       console.log(`✅ YAUTeamUp enrollment email sent successfully to: ${email}`);
-      
+
 
       return {
         success: true,
         message: "YAUTeamUp enrollment email sent successfully",
         email: email,
-        
+
       };
     } catch (error) {
       console.error("❌ Error sending YAUTeamUp enrollment email:", error);
@@ -345,7 +345,7 @@ Thank you for choosing YAUTeamUp.
   static async sendCoachAssignmentEmail(email, firstName, assignment) {
     try {
       console.log(`📧 Preparing coach assignment email to: ${email}`);
-      
+
       const displayName = firstName ? firstName : email.split("@")[0];
       const subject = `New YAU Coaching Assignment: ${assignment.site}`;
 
@@ -403,12 +403,12 @@ You can view all your assignments by logging into your Coach Dashboard.
 © ${new Date().getFullYear()} YAU Sports. All rights reserved.
       `;
 
-      
+
 
       const info = await this.sendEmail({ to: email, subject: subject, html: htmlContent, text: typeof textContent !== "undefined" ? textContent : undefined });
-      if(!info.success) return { success: false, error: info.error };
+      if (!info.success) return { success: false, error: info.error };
       console.log(`✅ Coach Assignment email sent successfully to: ${email}`);
-      return { success: true,  };
+      return { success: true, };
     } catch (error) {
       console.error("❌ Error sending Coach assignment email:", error);
       return { success: false, error: error.message };
@@ -421,7 +421,7 @@ You can view all your assignments by logging into your Coach Dashboard.
   static async sendCoachWelcomeEmail(email, password, firstName) {
     try {
       console.log(`📧 Preparing coach welcome email to: ${email}`);
-      
+
       const displayName = firstName || email.split("@")[0];
       const subject = "Welcome to the YAU Coaching Team!";
 
@@ -454,12 +454,12 @@ You can view all your assignments by logging into your Coach Dashboard.
         </html>
       `;
 
-      
+
 
       const info = await this.sendEmail({ to: email, subject: subject, html: htmlContent, text: typeof textContent !== "undefined" ? textContent : undefined });
-      if(!info.success) return { success: false, error: info.error };
+      if (!info.success) return { success: false, error: info.error };
       console.log(`✅ Coach welcome email sent successfully to: ${email}`);
-      return { success: true,  };
+      return { success: true, };
     } catch (error) {
       console.error("❌ Error sending Coach welcome email:", error);
       // We don't throw here to avoid blocking coach creation
@@ -473,7 +473,7 @@ You can view all your assignments by logging into your Coach Dashboard.
   static async sendCoachApprovalEmail(email, firstName) {
     try {
       console.log(`📧 Preparing coach approval email to: ${email}`);
-      
+
       const displayName = firstName || email.split("@")[0];
       const subject = "Your YAU Coach Account Has Been Approved!";
 
@@ -510,12 +510,12 @@ You can view all your assignments by logging into your Coach Dashboard.
         </html>
       `;
 
-      
+
 
       const info = await this.sendEmail({ to: email, subject: subject, html: htmlContent, text: typeof textContent !== "undefined" ? textContent : undefined });
-      if(!info.success) return { success: false, error: info.error };
+      if (!info.success) return { success: false, error: info.error };
       console.log(`✅ Coach approval email sent successfully to: ${email}`);
-      return { success: true,  };
+      return { success: true, };
     } catch (error) {
       console.error("❌ Error sending Coach approval email:", error);
       return { success: false, error: error.message };
@@ -528,7 +528,7 @@ You can view all your assignments by logging into your Coach Dashboard.
   static async sendCoachRejectionEmail(email, firstName, reason = "") {
     try {
       console.log(`📧 Preparing coach rejection email to: ${email}`);
-      
+
       const displayName = firstName || email.split("@")[0];
       const subject = "Your YAU Coach Application Status";
 
@@ -557,12 +557,12 @@ You can view all your assignments by logging into your Coach Dashboard.
         </html>
       `;
 
-      
+
 
       const info = await this.sendEmail({ to: email, subject: subject, html: htmlContent, text: typeof textContent !== "undefined" ? textContent : undefined });
-      if(!info.success) return { success: false, error: info.error };
+      if (!info.success) return { success: false, error: info.error };
       console.log(`✅ Coach rejection email sent successfully to: ${email}`);
-      return { success: true,  };
+      return { success: true, };
     } catch (error) {
       console.error("❌ Error sending Coach rejection email:", error);
       return { success: false, error: error.message };

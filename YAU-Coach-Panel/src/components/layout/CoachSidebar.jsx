@@ -20,7 +20,7 @@ const CoachSidebar = ({
     try {
       await signOutCoach();
       localStorage.removeItem('coachUser');
-      navigate('/');
+      window.location.href = '/login';
     } catch (error) {
       console.error('Sign out error:', error);
     }

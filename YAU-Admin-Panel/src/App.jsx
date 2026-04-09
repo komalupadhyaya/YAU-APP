@@ -56,7 +56,7 @@ const AppContent = () => {
 
         {/* Coach Routes (separate portal) */}
         <Route
-          path="/login"
+          path="/coach-login"
           element={hasValidCoachSession() ? <Navigate to="/coach" replace /> : <CoachLogin />}
         />
         <Route

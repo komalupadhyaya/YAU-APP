@@ -45,7 +45,7 @@ const CoachDashboard = ({ onSwitchToMemberView }) => {
     try {
       await signOutCoach();
       localStorage.removeItem('currentUser');
-      window.location.href = '/';
+      window.location.href = '/coach-login';
     } catch (error) {
       console.error('Error signing out:', error);
     }
