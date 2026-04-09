@@ -69,7 +69,11 @@ class CoachAssignmentsController {
 
     } catch (error) {
       console.error('Error sending notification:', error);
-      return res.status(500).json({ error: 'Failed to send notification.' });
+      return res.status(500).json({ 
+        error: 'Failed to send notification.', 
+        details: error.message,
+        stack: error.stack
+      });
     }
   }
 }

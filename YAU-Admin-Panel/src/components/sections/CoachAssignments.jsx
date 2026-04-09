@@ -175,13 +175,18 @@ const CoachAssignments = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to send notification via server');
+        let errMsg = 'Failed to send notification via server';
+        try {
+          const errData = await response.json();
+          errMsg = errData.details || errData.error || errMsg;
+        } catch (e) {}
+        throw new Error(errMsg);
       }
 
       alert('Notification sent successfully!');
     } catch (error) {
       console.error('Failed to send notification', error);
-      alert('Failed to send notification');
+      alert(`Error: ${error.message}`);
     } finally {
       setSendingNotification(null);
     }
