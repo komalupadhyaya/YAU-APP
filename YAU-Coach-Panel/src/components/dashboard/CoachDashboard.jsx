@@ -46,7 +46,7 @@ const CoachDashboard = ({ onSwitchToMemberView }) => {
       .sort((a, b) => new Date(a.date) - new Date(b.date))[0];
   };
 
-  const filteredRosters = selectedTeam 
+  const filteredRosters = selectedTeam
     ? rosters.filter(roster => roster.id === selectedTeam)
     : rosters;
 
@@ -68,7 +68,7 @@ const CoachDashboard = ({ onSwitchToMemberView }) => {
           <h2 className="text-2xl font-bold text-gray-800 mb-4">Access Denied</h2>
           <p className="text-gray-600 mb-4">Unable to load coach data. Please try logging in again.</p>
           <button
-            onClick={() => window.location.href = '/coach-login'}
+            onClick={() => window.location.href = '/'}
             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
           >
             Back to Login
@@ -108,11 +108,10 @@ const CoachDashboard = ({ onSwitchToMemberView }) => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm relative ${
-                    activeTab === tab.id
+                  className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm relative ${activeTab === tab.id
                       ? 'border-blue-500 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
+                    }`}
                 >
                   <Icon size={18} />
                   <span>{tab.label}</span>
@@ -132,12 +131,12 @@ const CoachDashboard = ({ onSwitchToMemberView }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'dashboard' && (
           <div className="space-y-8">
-            <QuickActions 
-              coachData={coachData} 
+            <QuickActions
+              coachData={coachData}
               teams={rosters}
               onRefresh={refreshData}
             />
-            <TodaysSnapshot 
+            <TodaysSnapshot
               nextEvent={getNextEvent()}
               unreadMessages={getUnreadMessages()}
               teams={rosters}
@@ -146,7 +145,7 @@ const CoachDashboard = ({ onSwitchToMemberView }) => {
         )}
 
         {activeTab === 'teams' && (
-          <TeamsRosters 
+          <TeamsRosters
             rosters={filteredRosters}
             coachData={coachData}
             onRefresh={refreshData}
@@ -154,7 +153,7 @@ const CoachDashboard = ({ onSwitchToMemberView }) => {
         )}
 
         {activeTab === 'schedule' && (
-          <Schedule 
+          <Schedule
             schedule={schedule}
             rosters={rosters}
             coachData={coachData}
