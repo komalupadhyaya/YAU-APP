@@ -67,7 +67,7 @@ const getCSRFToken = (req, res) => {
       'https://members.yauapp.com',
       'https://yau-member-panel.web.app',
       'https://yau-member-panel.firebaseapp.com',
-      'https://us-central1-yau-app.cloudfunctions.net',
+      'https://yau-app.onrender.com',
       'http://pickup.yauapp.com',
       'https://pickup.yauapp.com',
       'http://localhost:3000', // For development

@@ -27,7 +27,7 @@ export const storage = getStorage(app);
 export const API_CONFIG = {
   baseURL: process.env.NODE_ENV === "development" 
     ? 'http://127.0.0.1:5001/yau-app/us-central1/apis'
-    : 'https://us-central1-yau-app.cloudfunctions.net/apis',
+    : 'https://yau-app.onrender.com/apis',
     
   endpoints: {
     // Coach endpoints

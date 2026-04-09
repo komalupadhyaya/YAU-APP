@@ -1,5 +1,5 @@
 // src/services/api.js
-const API_BASE_URL = 'https://us-central1-yau-app.cloudfunctions.net/apis';
+const API_BASE_URL = 'https://yau-app.onrender.com/apis';
 
 export const api = {
   // Get all organizations

@@ -349,7 +349,7 @@ function Payments() {
     
     console.log('🧪 Testing payment API directly...');
     try {
-      const testUrl = `${process.env.NODE_ENV === 'development' ? 'http://127.0.0.1:5001/yau-app/us-central1/apis' : 'https://us-central1-yau-app.cloudfunctions.net/apis'}/payments/history/email/${encodeURIComponent(user.email)}`;
+      const testUrl = `${process.env.NODE_ENV === 'development' ? 'http://127.0.0.1:5001/yau-app/us-central1/apis' : 'https://yau-app.onrender.com/apis'}/payments/history/email/${encodeURIComponent(user.email)}`;
       console.log('🔗 Testing URL:', testUrl);
       
       const response = await fetch(testUrl, {
