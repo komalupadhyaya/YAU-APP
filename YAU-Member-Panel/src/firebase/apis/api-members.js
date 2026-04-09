@@ -797,31 +797,25 @@ const removeStudentFromSpecificRoster = async (parentId, student, rosterId, batc
   }
 };
 export const createFirebaseAuthUser = async (email, password) => {
-  const FIREBASE_API_KEY = 'AIzaSyCADG-9nm-61nmsHbe-hNlg82g0ccKpjkw';
-
   try {
-    const response = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FIREBASE_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          password,
-          returnSecureToken: false // Important: prevents login switch
-        })
-      }
-    );
+    const { API_CONFIG } = await import('../config');
+    console.log('👤 Calling Render backend for user creation...');
 
-    const data = await response.json();
+    const response = await fetch(`${API_CONFIG.baseURL}/auth/create-auth-user`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
 
-    if (data.error) {
-      throw new Error(data.error.message);
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to create account on server');
     }
 
-    return data.localId; // UID of created user
+    return result.data.localId; // UID of created user
   } catch (error) {
-    console.error('❌ Failed to create Firebase Auth user:', error.message);
+    console.error('❌ Failed to create auth user via proxy:', error.message);
     throw error;
   }
 };

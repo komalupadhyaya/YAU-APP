@@ -1,28 +1,31 @@
-const FIREBASE_API_KEY = "AIzaSyCADG-9nm-61nmsHbe-hNlg82g0ccKpjkw";
+const admin = require("firebase-admin");
 
 class AuthService {
-  static async createFirebaseAuthUser(email, password) {
+  static async createFirebaseAuthUser(req, res) {
+    const { email, password } = req.body;
+    
     try {
-      const response = await fetch(
-        `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FIREBASE_API_KEY}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email,
-            password,
-            returnSecureToken: false,
-          }),
+      console.log('👤 Creating Firebase Auth user via Admin SDK for:', email);
+      
+      const userRecord = await admin.auth().createUser({
+        email,
+        password,
+      });
+
+      console.log('✅ Successfully created new user:', userRecord.uid);
+      
+      res.status(201).json({
+        success: true,
+        data: {
+          localId: userRecord.uid
         }
-      );
-      const data = await response.json();
-      if (data.error) {
-        throw new Error(data.error.message);
-      }
-      return data.localId;
+      });
     } catch (error) {
-      console.error("Failed to create Firebase Auth user:", error.message);
-      throw error;
+      console.error("❌ Failed to create Firebase Auth user:", error.message);
+      res.status(400).json({
+        success: false,
+        error: error.message
+      });
     }
   }
 }
