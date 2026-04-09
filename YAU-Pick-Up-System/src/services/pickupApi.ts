@@ -11,7 +11,7 @@ type Json = Record<string, unknown>;
 function baseUrl(): string {
   const v = import.meta.env.VITE_API_BASE_URL as string | undefined;
   // Planning doc base includes `/apis`, and pickup endpoints are under `/pickup`.
-  // Example: https://yau-app.onrender.com/apis
+  // Example: https://yau-app.onrender.com
   return (v ?? "").replace(/\/+$/, "");
 }
 

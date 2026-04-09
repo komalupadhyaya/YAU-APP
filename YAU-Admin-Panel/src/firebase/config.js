@@ -27,7 +27,7 @@ export const API_CONFIG = {
   // FIXED: Remove the extra /api from baseURL since we add it in endpoints
   baseURL: process.env.NODE_ENV === "development"
     ? 'http://127.0.0.1:5001/yau-app/us-central1/apis'
-    : 'https://yau-app.onrender.com/apis',
+    : 'https://yau-app.onrender.com',
 
   endpoints: {
 
