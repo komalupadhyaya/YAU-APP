@@ -1,113 +1,43 @@
-const nodemailer = require("nodemailer");
-const AzureTransport = require("./AzureTransport");
+const { Resend } = require("resend");
 
-// Helper function to get environment variables
-const getEnvVar = (key, defaultValue = null) => {
-  try {
-    if (process && process.env && process.env[key]) {
-      return process.env[key];
-    }
-    return defaultValue;
-  } catch (error) {
-    console.warn(`Could not access config for ${key}:`, error.message);
-    return defaultValue;
-  }
-};
+// Initialize Resend API with environment key
+const resend = new Resend(process.env.RESEND_API_KEY || "missing_api_key");
 
 class EmailService {
   /**
-   * Create and configure nodemailer transporter
-   * @returns {Promise<Object>} Configured nodemailer transporter
+   * Core Reusable Send Email Function
    */
-  static async createTransporter() {
+  static async sendEmail({ to, subject, html, text }) {
     try {
-      // Get SMTP configuration from environment variables
-      const smtpHost = getEnvVar("SMTP_HOST", "smtp.gmail.com");
-      const smtpPort = parseInt(getEnvVar("SMTP_PORT", "587"), 10);
-      const smtpSecure = getEnvVar("SMTP_SECURE", "false") === "true"; // true for 465, false for other ports
-      const smtpUser = getEnvVar("SMTP_USER");
-      const smtpPassword = getEnvVar("SMTP_PASSWORD");
-
-      const azureClientId = getEnvVar("AZURE_CLIENT_ID");
-      const azureClientSecret = getEnvVar("AZURE_CLIENT_SECRET");
-      const azureTenantId = getEnvVar("AZURE_TENANT_ID");
-
-      let transporter;
-      let fromEmail;
-      let fromName;
-
-      if (azureClientId && azureClientSecret && azureTenantId) {
-        console.log("Using Azure Transport for email.");
-        transporter = nodemailer.createTransport(
-          new AzureTransport({
-            clientId: azureClientId,
-            clientSecret: azureClientSecret,
-            tenantId: azureTenantId,
-            saveToSentItems: true, // Default to true, can be configured
-          })
-        );
-        fromEmail = getEnvVar("FROM_EMAIL", "noreply@yauapp.com"); // Default for Azure if not set
-        fromName = getEnvVar("FROM_NAME", "YAU Sports");
-        // Azure transport does not have a direct 'verify' method like SMTP
-        // The verification happens implicitly with the first send
-        console.log("✅ Azure email transport configured.");
-
-      } else {
-        // Fallback to SMTP if Azure credentials are not provided
-        console.log("Using SMTP Transport for email.");
-        // Validate required SMTP configuration
-        if (!smtpUser || !smtpPassword) {
-          throw new Error(
-            "SMTP configuration missing. Please set SMTP_USER and SMTP_PASSWORD environment variables, or Azure credentials."
-          );
-        }
-
-        // Create transporter
-        transporter = nodemailer.createTransport({
-          host: smtpHost,
-          port: smtpPort,
-          secure: smtpSecure, // true for 465, false for other ports
-          auth: {
-            user: smtpUser,
-            pass: smtpPassword,
-          },
-          // Additional options for better compatibility
-          tls: {
-            rejectUnauthorized: false, // Accept self-signed certificates
-          },
-        });
-
-        // Verify connection
-        await transporter.verify();
-        console.log("✅ SMTP server connection verified");
-        fromEmail = getEnvVar("FROM_EMAIL", smtpUser);
-        fromName = getEnvVar("FROM_NAME", "YAU Sports");
+      if (!process.env.RESEND_API_KEY) {
+        console.warn("⚠️ RESEND_API_KEY not configured. Email skipping...");
+        return { success: false, error: "Missing API Key" };
       }
 
-      return {
-        transporter,
-        fromEmail,
-        fromName,
-      };
+      const response = await resend.emails.send({
+        from: "onboarding@resend.dev", // Temporary sender
+        to,
+        subject,
+        html,
+        text
+      });
+
+      console.log("Email sent:", response);
+      return { success: true, data: response };
     } catch (error) {
-      console.error("❌ Error creating email transporter:", error);
-      throw new Error(`Failed to configure email service: ${error.message}`);
+      console.warn("Email failed, continuing...");
+      console.error("Email error:", error);
+      // Do NOT crash server if email fails
+      return { success: false, error: error.message };
     }
   }
 
-  /**
-   * Send password reset email to user
-   * @param {string} email - User's email address
-   * @param {string} resetLink - Password reset link
-   * @param {string} firstName - User's first name (optional)
-   * @returns {Promise<Object>} Result of email sending
-   */
   static async sendPasswordResetEmail(email, resetLink, firstName = null) {
     try {
       console.log(`📧 Preparing to send password reset email to: ${email} and link is ${resetLink}`);
 
       // Create transporter
-      const { transporter, fromEmail, fromName } = await this.createTransporter();
+      
 
       const displayName = firstName ? firstName : email.split("@")[0];
       const subject = "Reset Your YAU Member Panel Password";
@@ -167,27 +97,22 @@ If you continue to have problems, please contact support.
       `;
 
       // Send email using nodemailer
-      const mailOptions = {
-        from: `"${fromName}" <${fromEmail}>`,
-        to: email,
-        subject: subject,
-        text: textContent,
-        html: htmlContent,
-      };
+      
 
-      const info = await transporter.sendMail(mailOptions);
+      const info = await this.sendEmail({ to: email, subject: subject, html: htmlContent, text: typeof textContent !== "undefined" ? textContent : undefined });
+      if(!info.success) return { success: false, error: info.error };
       console.log(`✅ Password reset email sent successfully to: ${email}`);
-      console.log(`📧 Message ID: ${info.messageId}`);
+      
 
       return {
         success: true,
         message: "Password reset email sent successfully",
         email: email,
-        messageId: info.messageId,
+        
       };
     } catch (error) {
       console.error("❌ Error sending password reset email:", error);
-      throw new Error(`Failed to send password reset email: ${error.message}`);
+      return { success: false, error: error.message };
     }
   }
 
@@ -202,7 +127,7 @@ If you continue to have problems, please contact support.
       console.log(`📧 Preparing password reset confirmation email to: ${email}`);
 
       // Create transporter
-      const { transporter, fromEmail, fromName } = await this.createTransporter();
+      
 
       const displayName = firstName ? firstName : email.split("@")[0];
       const subject = "Password Reset Successful - YAU Member Panel";
@@ -250,27 +175,22 @@ You can now log in with your new password.
       `;
 
       // Send email using nodemailer
-      const mailOptions = {
-        from: `"${fromName}" <${fromEmail}>`,
-        to: email,
-        subject: subject,
-        text: textContent,
-        html: htmlContent,
-      };
+      
 
-      const info = await transporter.sendMail(mailOptions);
+      const info = await this.sendEmail({ to: email, subject: subject, html: htmlContent, text: typeof textContent !== "undefined" ? textContent : undefined });
+      if(!info.success) return { success: false, error: info.error };
       console.log(`✅ Password reset confirmation email sent successfully to: ${email}`);
-      console.log(`📧 Message ID: ${info.messageId}`);
+      
 
       return {
         success: true,
         message: "Password reset confirmation email sent successfully",
         email: email,
-        messageId: info.messageId,
+        
       };
     } catch (error) {
       console.error("❌ Error sending password reset confirmation email:", error);
-      throw new Error(`Failed to send confirmation email: ${error.message}`);
+      return { success: false, error: error.message };
     }
   }
 
@@ -284,7 +204,7 @@ You can now log in with your new password.
     try {
       console.log(`📧 Preparing member sign-up email to: ${email}`);
 
-      const { transporter, fromEmail, fromName } = await this.createTransporter();
+      
 
       const displayName = firstName ? firstName : email.split("@")[0];
       const subject = "Welcome to YAU FUN";
@@ -329,27 +249,22 @@ Thank you for being part of the YAU community.
 © ${new Date().getFullYear()} YAU Sports. All rights reserved.
       `;
 
-      const mailOptions = {
-        from: `"${fromName}" <${fromEmail}>`,
-        to: email,
-        subject: subject,
-        text: textContent,
-        html: htmlContent,
-      };
+      
 
-      const info = await transporter.sendMail(mailOptions);
+      const info = await this.sendEmail({ to: email, subject: subject, html: htmlContent, text: typeof textContent !== "undefined" ? textContent : undefined });
+      if(!info.success) return { success: false, error: info.error };
       console.log(`✅ Member sign-up email sent successfully to: ${email}`);
-      console.log(`📧 Message ID: ${info.messageId}`);
+      
 
       return {
         success: true,
         message: "Member sign-up email sent successfully",
         email: email,
-        messageId: info.messageId,
+        
       };
     } catch (error) {
       console.error("❌ Error sending member sign-up email:", error);
-      throw new Error(`Failed to send member sign-up email: ${error.message}`);
+      return { success: false, error: error.message };
     }
   }
 
@@ -363,7 +278,7 @@ Thank you for being part of the YAU community.
     try {
       console.log(`📧 Preparing YAUTeamUp enrollment email to: ${email}`);
 
-      const { transporter, fromEmail, fromName } = await this.createTransporter();
+      
 
       const subject = "Welcome to YAUTeamUp – Enrollment Submitted";
 
@@ -405,27 +320,22 @@ Thank you for choosing YAUTeamUp.
 © ${new Date().getFullYear()} YAUTeamUp. All rights reserved.
       `;
 
-      const mailOptions = {
-        from: `"${fromName}" <${fromEmail}>`,
-        to: email,
-        subject: subject,
-        text: textContent,
-        html: htmlContent,
-      };
+      
 
-      const info = await transporter.sendMail(mailOptions);
+      const info = await this.sendEmail({ to: email, subject: subject, html: htmlContent, text: typeof textContent !== "undefined" ? textContent : undefined });
+      if(!info.success) return { success: false, error: info.error };
       console.log(`✅ YAUTeamUp enrollment email sent successfully to: ${email}`);
-      console.log(`📧 Message ID: ${info.messageId}`);
+      
 
       return {
         success: true,
         message: "YAUTeamUp enrollment email sent successfully",
         email: email,
-        messageId: info.messageId,
+        
       };
     } catch (error) {
       console.error("❌ Error sending YAUTeamUp enrollment email:", error);
-      throw new Error(`Failed to send YAUTeamUp enrollment email: ${error.message}`);
+      return { success: false, error: error.message };
     }
   }
 
@@ -435,7 +345,7 @@ Thank you for choosing YAUTeamUp.
   static async sendCoachAssignmentEmail(email, firstName, assignment) {
     try {
       console.log(`📧 Preparing coach assignment email to: ${email}`);
-      const { transporter, fromEmail, fromName } = await this.createTransporter();
+      
       const displayName = firstName ? firstName : email.split("@")[0];
       const subject = `New YAU Coaching Assignment: ${assignment.site}`;
 
@@ -493,20 +403,15 @@ You can view all your assignments by logging into your Coach Dashboard.
 © ${new Date().getFullYear()} YAU Sports. All rights reserved.
       `;
 
-      const mailOptions = {
-        from: `"${fromName}" <${fromEmail}>`,
-        to: email,
-        subject: subject,
-        text: textContent,
-        html: htmlContent,
-      };
+      
 
-      const info = await transporter.sendMail(mailOptions);
+      const info = await this.sendEmail({ to: email, subject: subject, html: htmlContent, text: typeof textContent !== "undefined" ? textContent : undefined });
+      if(!info.success) return { success: false, error: info.error };
       console.log(`✅ Coach Assignment email sent successfully to: ${email}`);
-      return { success: true, messageId: info.messageId };
+      return { success: true,  };
     } catch (error) {
       console.error("❌ Error sending Coach assignment email:", error);
-      throw new Error(`Failed to send assignment email: ${error.message}`);
+      return { success: false, error: error.message };
     }
   }
 
@@ -516,7 +421,7 @@ You can view all your assignments by logging into your Coach Dashboard.
   static async sendCoachWelcomeEmail(email, password, firstName) {
     try {
       console.log(`📧 Preparing coach welcome email to: ${email}`);
-      const { transporter, fromEmail, fromName } = await this.createTransporter();
+      
       const displayName = firstName || email.split("@")[0];
       const subject = "Welcome to the YAU Coaching Team!";
 
@@ -549,16 +454,12 @@ You can view all your assignments by logging into your Coach Dashboard.
         </html>
       `;
 
-      const mailOptions = {
-        from: `"${fromName}" <${fromEmail}>`,
-        to: email,
-        subject: subject,
-        html: htmlContent,
-      };
+      
 
-      const info = await transporter.sendMail(mailOptions);
+      const info = await this.sendEmail({ to: email, subject: subject, html: htmlContent, text: typeof textContent !== "undefined" ? textContent : undefined });
+      if(!info.success) return { success: false, error: info.error };
       console.log(`✅ Coach welcome email sent successfully to: ${email}`);
-      return { success: true, messageId: info.messageId };
+      return { success: true,  };
     } catch (error) {
       console.error("❌ Error sending Coach welcome email:", error);
       // We don't throw here to avoid blocking coach creation
@@ -572,7 +473,7 @@ You can view all your assignments by logging into your Coach Dashboard.
   static async sendCoachApprovalEmail(email, firstName) {
     try {
       console.log(`📧 Preparing coach approval email to: ${email}`);
-      const { transporter, fromEmail, fromName } = await this.createTransporter();
+      
       const displayName = firstName || email.split("@")[0];
       const subject = "Your YAU Coach Account Has Been Approved!";
 
@@ -609,16 +510,12 @@ You can view all your assignments by logging into your Coach Dashboard.
         </html>
       `;
 
-      const mailOptions = {
-        from: `"${fromName}" <${fromEmail}>`,
-        to: email,
-        subject: subject,
-        html: htmlContent,
-      };
+      
 
-      const info = await transporter.sendMail(mailOptions);
+      const info = await this.sendEmail({ to: email, subject: subject, html: htmlContent, text: typeof textContent !== "undefined" ? textContent : undefined });
+      if(!info.success) return { success: false, error: info.error };
       console.log(`✅ Coach approval email sent successfully to: ${email}`);
-      return { success: true, messageId: info.messageId };
+      return { success: true,  };
     } catch (error) {
       console.error("❌ Error sending Coach approval email:", error);
       return { success: false, error: error.message };
@@ -631,7 +528,7 @@ You can view all your assignments by logging into your Coach Dashboard.
   static async sendCoachRejectionEmail(email, firstName, reason = "") {
     try {
       console.log(`📧 Preparing coach rejection email to: ${email}`);
-      const { transporter, fromEmail, fromName } = await this.createTransporter();
+      
       const displayName = firstName || email.split("@")[0];
       const subject = "Your YAU Coach Application Status";
 
@@ -660,16 +557,12 @@ You can view all your assignments by logging into your Coach Dashboard.
         </html>
       `;
 
-      const mailOptions = {
-        from: `"${fromName}" <${fromEmail}>`,
-        to: email,
-        subject: subject,
-        html: htmlContent,
-      };
+      
 
-      const info = await transporter.sendMail(mailOptions);
+      const info = await this.sendEmail({ to: email, subject: subject, html: htmlContent, text: typeof textContent !== "undefined" ? textContent : undefined });
+      if(!info.success) return { success: false, error: info.error };
       console.log(`✅ Coach rejection email sent successfully to: ${email}`);
-      return { success: true, messageId: info.messageId };
+      return { success: true,  };
     } catch (error) {
       console.error("❌ Error sending Coach rejection email:", error);
       return { success: false, error: error.message };
