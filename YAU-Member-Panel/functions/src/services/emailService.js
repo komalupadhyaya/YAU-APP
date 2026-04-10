@@ -15,7 +15,7 @@ class EmailService {
       }
 
       const response = await resend.emails.send({
-        from: "onboarding@resend.dev", // Temporary sender
+        from: process.env.EMAIL_SENDER || "onboarding@resend.dev", 
         to,
         subject,
         html,
