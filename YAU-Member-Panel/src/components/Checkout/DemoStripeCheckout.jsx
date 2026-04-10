@@ -685,21 +685,30 @@ const DemoStripeCheckout = ({ planType, planDetails, amount, user, onSuccess, on
 
           {/* Real Stripe Payment Form */}
           {useRealStripe && (selectedPaymentMethod === 'stripe' || selectedPaymentMethod === 'card') && (
-            <Elements stripe={stripePromise}>
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Payment Information</h3>
-                <StripeCheckoutForm
-                  planType={planType}
-                  planDetails={planDetails}
-                  amount={amount}
-                  user={user}
-                  onSuccess={handleStripeSuccess}
-                  onError={handleStripeError}
-                  formData={formData}
-                  childrenCount={childrenCount}
-                />
+            !process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY ? (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                <p className="text-red-800 font-medium">Stripe Configuration Error</p>
+                <p className="text-red-600 text-sm">
+                  The `REACT_APP_STRIPE_PUBLISHABLE_KEY` is missing. Please add it to your environment variables.
+                </p>
               </div>
-            </Elements>
+            ) : (
+              <Elements stripe={stripePromise}>
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Payment Information</h3>
+                  <StripeCheckoutForm
+                    planType={planType}
+                    planDetails={planDetails}
+                    amount={amount}
+                    user={user}
+                    onSuccess={handleStripeSuccess}
+                    onError={handleStripeError}
+                    formData={formData}
+                    childrenCount={childrenCount}
+                  />
+                </div>
+              </Elements>
+            )
           )}
 
           {/* Demo Card Details (only when not using real Stripe) */}

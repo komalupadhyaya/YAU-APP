@@ -1010,16 +1010,25 @@ const UniformOrder = () => {
             </div>
 
             {/* Payment Form */}
-            <Elements stripe={stripePromise}>
-              <UniformCheckoutForm
-                uniformData={uniformData}
-                user={user}
-                onSuccess={handlePaymentSuccess}
-                onError={handlePaymentError}
-                availableStudents={availableStudents}
-                selectedStudentId={selectedStudentId}
-              />
-            </Elements>
+            {!process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY ? (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4 text-center">
+                <p className="text-red-800 font-medium">Stripe Configuration Error</p>
+                <p className="text-red-600 text-sm">
+                  The `REACT_APP_STRIPE_PUBLISHABLE_KEY` is missing. Please add it to your Vercel/Environment settings.
+                </p>
+              </div>
+            ) : (
+              <Elements stripe={stripePromise}>
+                <UniformCheckoutForm
+                  uniformData={uniformData}
+                  user={user}
+                  onSuccess={handlePaymentSuccess}
+                  onError={handlePaymentError}
+                  availableStudents={availableStudents}
+                  selectedStudentId={selectedStudentId}
+                />
+              </Elements>
+            )}
 
             {/* Back Button */}
             <button
