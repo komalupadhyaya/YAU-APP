@@ -270,7 +270,53 @@ export const API_CONFIG = {
       token: '/csrf-token'
     },
 
+    // Member endpoints
+    members: {
+      getAll: '/members',
+      getById: '/members/:id',
+      getByEmail: '/members/email/:email',
+      create: '/members',
+      update: '/members/:id',
+      delete: '/members/:id',
+      getByType: '/members/type/:type',
+      getStats: '/members/stats',
+      search: '/members/search',
+      bulkUpdate: '/members/bulk-update'
+    },
+
   }
+};
+
+
+// Helper function to build complete URL
+export const buildApiUrl = (endpoint, params = {}) => {
+  let url = `${API_CONFIG.baseURL}${endpoint}`;
+
+  // Replace URL parameters
+  Object.keys(params).forEach(key => {
+    // Encode to keep URLs valid (spaces, slashes, etc.)
+    const raw = params[key];
+    const encoded = encodeURIComponent(raw == null ? '' : String(raw));
+    url = url.replace(`:${key}`, encoded);
+  });
+
+  return url;
+};
+
+// Helper function to get endpoint by path
+export const getEndpoint = (path) => {
+  const pathParts = path.split('.');
+  let endpoint = API_CONFIG.endpoints;
+
+  for (const part of pathParts) {
+    if (endpoint[part]) {
+      endpoint = endpoint[part];
+    } else {
+      throw new Error(`Endpoint not found: ${path}`);
+    }
+  }
+
+  return endpoint;
 };
 
 export default app;
