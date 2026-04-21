@@ -40,13 +40,47 @@ const app = express();
 
 // DEBUT LOGGING - VERY FIRST THING
 // Use standard CORS package for maximum robustness
+const allowedOrigins = [
+  'https://project-vj2w5.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173'
+];
+
 app.use(cors({
-  origin: true, // Echoes the origin from the request
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps)
+    if (!origin) return callback(null, true);
+    
+    const isAllowed = allowedOrigins.includes(origin) || 
+                     origin.endsWith('.vercel.app') || 
+                     origin.includes('localhost') || 
+                     origin.includes('127.0.0.1');
+
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.warn(`📩 CORS blocked for origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'x-admin-id', 'x-username', 'x-csrf-token', 'x-app-check-token'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'X-Requested-With', 
+    'Accept', 
+    'Origin',
+    'x-admin-id', 
+    'x-username', 
+    'x-csrf-token', 
+    'x-app-check-token'
+  ],
   credentials: true,
+  optionsSuccessStatus: 204,
   maxAge: 86400
 }));
+
 
 // DEBUT LOGGING - After CORS but before logic
 app.use((req, res, next) => {
