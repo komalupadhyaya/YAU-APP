@@ -456,7 +456,7 @@ You can view all your assignments by logging into your Coach Dashboard.
 
 
 
-      const info = await this.sendEmail({ to: email, subject: subject, html: htmlContent, text: typeof textContent !== "undefined" ? textContent : undefined });
+      const info = await this.sendEmail({ to: email, subject: subject, html: htmlContent });
       if (!info.success) return { success: false, error: info.error };
       console.log(`✅ Coach welcome email sent successfully to: ${email}`);
       return { success: true, };
@@ -512,7 +512,7 @@ You can view all your assignments by logging into your Coach Dashboard.
 
 
 
-      const info = await this.sendEmail({ to: email, subject: subject, html: htmlContent, text: typeof textContent !== "undefined" ? textContent : undefined });
+      const info = await this.sendEmail({ to: email, subject: subject, html: htmlContent });
       if (!info.success) return { success: false, error: info.error };
       console.log(`✅ Coach approval email sent successfully to: ${email}`);
       return { success: true, };
@@ -559,7 +559,7 @@ You can view all your assignments by logging into your Coach Dashboard.
 
 
 
-      const info = await this.sendEmail({ to: email, subject: subject, html: htmlContent, text: typeof textContent !== "undefined" ? textContent : undefined });
+      const info = await this.sendEmail({ to: email, subject: subject, html: htmlContent });
       if (!info.success) return { success: false, error: info.error };
       console.log(`✅ Coach rejection email sent successfully to: ${email}`);
       return { success: true, };

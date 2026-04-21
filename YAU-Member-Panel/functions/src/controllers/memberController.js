@@ -2,6 +2,7 @@ const MemberService = require("../services/memberService");
 const MembershipService = require("../services/membershipService");
 const EmailService = require("../services/emailService");
 const TwilioService = require("../services/twilioService");
+const ConstantContactService = require("../services/constantContactService");
 const { getAuth } = require("firebase-admin/auth");
 
 class MemberController {
@@ -120,8 +121,27 @@ class MemberController {
           console.error("❌ Failed to send member welcome SMS:", smsError.message);
           // Continue with the registration process even if SMS fails to send
         }
-      } else {
+    } else {
         console.log(`ℹ️ SMS skipped. Consented: ${smsConsented}, Phone: ${!!memberData.phoneNumber}`);
+      }
+
+      // Step 4: Register with Constant Contact
+      try {
+        const ccPayload = {
+          sport: memberData.sport || "",
+          phone: memberData.phoneNumber || memberData.phone || "",
+          firstName: memberData.firstName,
+          lastName: memberData.lastName,
+          location: memberData.location || "",
+          membershipType: memberData.membershipType || "paid",
+          registrationPlan: memberData.registrationPlan || "",
+          email: memberData.email,
+        };
+        await ConstantContactService.registerYAU(ccPayload);
+        console.log("✅ Constant Contact registration successful");
+      } catch (ccError) {
+        console.error("❌ Constant Contact registration failed:", ccError.message);
+        // Continue anyway
       }
 
       console.log('✅ Member created successfully:', result.memberId || result.id);

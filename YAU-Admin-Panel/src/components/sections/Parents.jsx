@@ -366,105 +366,41 @@ const Parents = () => {
 
   const handleManualAssignment = async () => {
     try {
-      console.log('🎯 Processing manual assignments...');
-      const batch = writeBatch(db);
-      const currentTimestamp = new Date().toISOString();
-      let assignedCount = 0;
-      let updatedCount = 0;
-      let skippedCount = 0;
+      console.log('🎯 Processing manual assignments via API...');
+      setLoading(true);
 
-      for (const assignment of selectedAssignments) {
-        if (assignment.selectedCoachId && assignment.selectedTeamId && assignment.hasAvailableTeams) {
-          const selectedCoach = assignment.selectedCoach;
-          const selectedTeam = selectedCoach.availableTeams.find(t => t.id === assignment.selectedTeamId);
+      const assignments = selectedAssignments
+        .filter(a => a.selectedCoachId && a.selectedTeamId && a.hasAvailableTeams)
+        .map(a => ({
+          rosterId: a.selectedTeamId,
+          student: a.student
+        }));
 
-          if (!selectedTeam) {
-            console.warn(`⚠️ Selected team not found for ${assignment.studentName}`);
-            skippedCount++;
-            continue;
-          }
-
-          const participantData = {
-            id: `${assigningParent.id}-${assignment.student.name || assignment.student.firstName}`,
-            name: assignment.student.name || assignment.student.firstName || '',
-            dob: assignment.student.dob || null,
-            ageGroup: calculateAgeGroup(assignment.student.dob) || '6U',
-            parentId: assigningParent.id,
-            parentName: `${assigningParent.firstName} ${assigningParent.lastName}`,
-            parentEmail: assigningParent.email || '',
-            parentPhone: assigningParent.phone || '',
-            sport: assigningParent.sport,
-            location: assigningParent.location,
-            coachId: assignment.selectedCoachId,
-            coachName: `${selectedCoach.firstName} ${selectedCoach.lastName}`,
-            teamId: assignment.selectedTeamId,
-            teamName: selectedTeam.teamName,
-            assignedAt: currentTimestamp,
-            assignedBy: 'admin'
-          };
-
-          const rosterRef = doc(db, 'rosters', assignment.selectedTeamId);
-          const rosterSnap = await getDoc(rosterRef);
-
-          if (rosterSnap.exists()) {
-            const rosterData = rosterSnap.data();
-            const existingParticipants = rosterData.participants || [];
-            const existingIndex = existingParticipants.findIndex(p => p.id === participantData.id);
-
-            let updatedParticipants;
-            if (existingIndex >= 0) {
-              updatedParticipants = [...existingParticipants];
-              updatedParticipants[existingIndex] = participantData;
-              updatedCount++;
-            } else {
-              updatedParticipants = [...existingParticipants, participantData];
-              assignedCount++;
-            }
-
-            const updateData = {
-              participants: updatedParticipants,
-              players: updatedParticipants,
-              playerCount: updatedParticipants.length,
-              hasPlayers: true,
-              status: 'active',
-              lastUpdated: serverTimestamp()
-            };
-
-            batch.update(rosterRef, updateData);
-          }
-        } else {
-          skippedCount++;
-          console.log(`⏭️ Skipping ${assignment.studentName} - incomplete selection or no teams available`);
-        }
+      if (assignments.length === 0) {
+        alert('Please complete team selections for at least one student.');
+        setLoading(false);
+        return;
       }
 
-      if (assignedCount > 0 || updatedCount > 0) {
-        const parentRef = doc(db, COLLECTIONS.PARENTS, assigningParent.id);
-        batch.update(parentRef, {
-          assignedAt: serverTimestamp(),
-          assignedBy: 'admin',
-          lastAssignmentUpdate: currentTimestamp
-        });
+      const { batchAssignPlayersToRosters } = await import('../../firebase/apis/api-parents');
+      const result = await batchAssignPlayersToRosters(assigningParent.id, assignments);
+
+      if (result.success) {
+        setIsAssignModalOpen(false);
+        setAssigningParent(null);
+        setSelectedAssignments([]);
+        loadData();
+
+        alert(`✅ ${result.assignedCount} assignments completed successfully via API!`);
       }
-
-      await batch.commit();
-
-      setIsAssignModalOpen(false);
-      setAssigningParent(null);
-      setSelectedAssignments([]);
-      loadData();
-
-      let message = '';
-      if (assignedCount > 0) message += `✅ ${assignedCount} new assignments completed. `;
-      if (updatedCount > 0) message += `🔄 ${updatedCount} existing assignments updated. `;
-      if (skippedCount > 0) message += `⏭️ ${skippedCount} students skipped (no teams available or incomplete selection).`;
-
-      alert(message || 'No changes were made.');
     } catch (error) {
-      console.error('❌ Error in manual assignment:', error);
+      console.error('❌ Error in manual assignment via API:', error);
       alert(`Error assigning to teams: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
   };
+
 
   const handleAddParent = async (e) => {
     e.preventDefault();

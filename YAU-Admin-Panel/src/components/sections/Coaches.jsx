@@ -288,103 +288,33 @@ const Coaches = () => {
     }
 
     try {
-      console.log('👨‍🏫 Assigning coach to existing rosters only:', assignmentData);
+      console.log('👨‍🏫 Assigning coach via API:', assignmentData);
+      setLoading(true);
 
-      const batch = writeBatch(db);
-      const assignedTeams = [];
-      let rostersUpdated = 0;
-      let rostersNotFound = 0;
+      const { batchAssignCoachToRosters } = await import('../../firebase/apis/api-parents');
+      const result = await batchAssignCoachToRosters(assigningCoach.id, assignmentData);
 
-      // For each location + age group combination
-      for (const location of assignmentData.assignedLocations) {
-        for (const ageGroup of assignmentData.assignedGroups) {
-          // Create consistent roster ID format
-          const rosterId = `${assignmentData.primarySport.toLowerCase().replace(/\s+/g, '-')}-${ageGroup.toLowerCase()}-${location.toLowerCase().replace(/\s+/g, '-')}`;
+      if (result.success) {
+        setIsAssignModalOpen(false);
+        setAssigningCoach(null);
+        loadData();
 
-          const rosterRef = doc(db, 'rosters', rosterId);
-          const rosterSnap = await getDoc(rosterRef);
-
-          if (rosterSnap.exists()) {
-            // ONLY update existing roster with coach - don't create new ones
-            const existingRoster = rosterSnap.data();
-
-            batch.update(rosterRef, {
-              coachId: assigningCoach.id,
-              coachName: `${assigningCoach.firstName} ${assigningCoach.lastName}`,
-              hasAssignedCoach: true,
-              status: existingRoster.hasPlayers ? 'active' : 'needs-players',
-              lastUpdated: serverTimestamp(),
-              updatedAt: serverTimestamp()
-            });
-
-            assignedTeams.push({
-              id: rosterId,
-              sport: assignmentData.primarySport,
-              ageGroup: ageGroup,
-              location: location,
-              teamName: existingRoster.teamName || `${ageGroup} ${assignmentData.primarySport} - ${location}`,
-              isPrimary: true,
-              playerCount: existingRoster.playerCount || 0
-            });
-
-            rostersUpdated++;
-            console.log(`✅ Updated existing roster: ${rosterId} (${existingRoster.playerCount || 0} players)`);
-
-          } else {
-            // Just log that roster doesn't exist - don't create it
-            rostersNotFound++;
-            console.log(`ℹ️ Roster not found (will be created when parents register): ${rosterId}`);
-          }
-        }
-      }
-
-      if (assignedTeams.length === 0) {
-        alert(`❌ No existing rosters found for the selected combinations.
-
-📋 Rosters are created automatically when parents register their children.
-📍 Selected: ${assignmentData.assignedLocations.join(', ')}
-🏆 Sport: ${assignmentData.primarySport}
-👶 Age Groups: ${assignmentData.assignedGroups.join(', ')}
-
-ℹ️ Once parents register for these combinations, you can assign this coach to those rosters.`);
-        return;
-      }
-
-      // Update coach with assigned teams
-      const coachRef = doc(db, 'users', assigningCoach.id);
-      batch.update(coachRef, {
-        primarySport: assignmentData.primarySport,
-        secondarySports: assignmentData.secondarySports,
-        assignedGroups: assignmentData.assignedGroups,
-        assignedLocations: assignmentData.assignedLocations,
-        assignedTeams: assignedTeams,
-        updatedAt: serverTimestamp()
-      });
-
-      await batch.commit();
-
-      setIsAssignModalOpen(false);
-      setAssigningCoach(null);
-      loadData();
-
-      // Success message with details
-      alert(`✅ Coach assigned to existing rosters only!
-
+        alert(`✅ Coach assigned successfully!
+        
 📊 Results:
-- ${rostersUpdated} existing rosters updated with coach
-- ${rostersNotFound} combinations had no existing rosters (normal - created when parents register)
-- Total active assignments: ${assignedTeams.length}
-
-🎯 Active rosters (with players): ${assignedTeams.filter(t => t.playerCount > 0).length}
-⏳ Waiting for players: ${assignedTeams.filter(t => t.playerCount === 0).length}
-
-✨ No new rosters were created - they'll be created automatically when parents register!`);
+- ${result.rostersUpdated} existing rosters updated with coach
+- ${result.assignedTeams.length} total active assignments
+- Active rosters: ${result.assignedTeams.filter(t => t.playerCount > 0).length}`);
+      }
 
     } catch (error) {
-      console.error('❌ Error assigning coach:', error);
+      console.error('❌ Error assigning coach via API:', error);
       alert('Error assigning coach: ' + error.message);
+    } finally {
+      setLoading(false);
     }
   };
+
 
   const handleAssignmentAgeGroupToggle = (ageGroup) => {
     const currentGroups = assignmentData.assignedGroups || [];

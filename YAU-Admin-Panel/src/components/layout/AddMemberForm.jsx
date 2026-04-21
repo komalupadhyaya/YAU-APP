@@ -8,6 +8,32 @@ import { getLocations } from '../../firebase/firestore';
 import { Autocomplete } from '../common/AutoComplete';
 import dayjs from 'dayjs';
 
+const GRADE_OPTIONS = [
+  'Kindergarten',
+  '1st Grade',
+  '2nd Grade',
+  '3rd Grade',
+  '4th Grade',
+  '5th Grade',
+  '6th Grade',
+  '7th Grade',
+  '8th Grade',
+];
+
+const GRADE_BAND_MAP = {
+  'Kindergarten': 'Band 1',
+  '1st Grade': 'Band 1',
+  '2nd Grade': 'Band 2',
+  '3rd Grade': 'Band 2',
+  '4th Grade': 'Band 3',
+  '5th Grade': 'Band 3',
+  '6th Grade': 'Band 4',
+  '7th Grade': 'Band 4',
+  '8th Grade': 'Band 4',
+};
+
+const getGradeBand = (grade) => GRADE_BAND_MAP[grade] || null;
+
 const AddMemberForm = ({ onSave, onCancel, loading, setLoading }) => {
   const [locations, setLocations] = useState([]);
   const [touched, setTouched] = useState({});
@@ -222,6 +248,7 @@ const AddMemberForm = ({ onSave, onCancel, loading, setLoading }) => {
       students: formData.students.map(student => ({
         ...student,
         ageGroup: calculateAgeGroup(student.dob),
+        grade_band: getGradeBand(student.grade),
       })),
     };
 
@@ -247,7 +274,7 @@ const AddMemberForm = ({ onSave, onCancel, loading, setLoading }) => {
   const addStudent = useCallback(() => {
     setFormData(prev => ({
       ...prev,
-      students: [...prev.students, { firstName: '', lastName: '', dob: '', ageGroup: '' }]
+      students: [...prev.students, { firstName: '', lastName: '', dob: '', grade: '', ageGroup: '' }]
     }));
   }, []);
 
@@ -552,6 +579,24 @@ const AddMemberForm = ({ onSave, onCancel, loading, setLoading }) => {
                       },
                     }}
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Grade *
+                  </label>
+                  <select
+                    name={`studentGrade-${index}`}
+                    value={student.grade || ''}
+                    onChange={(e) => updateStudent(index, 'grade', e.target.value)}
+                    onBlur={handleBlur}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors[`studentGrade-${index}`] ? 'border-red-300' : 'border-gray-300'}`}
+                  >
+                    <option value="">Select Grade</option>
+                    {GRADE_OPTIONS.map(g => (
+                      <option key={g} value={g}>{g}</option>
+                    ))}
+                  </select>
+                  {errors[`studentGrade-${index}`] && <p className="text-red-500 text-xs mt-1">{errors[`studentGrade-${index}`]}</p>}
                 </div>
                 <div className="relative">
                   <label className="block text-sm font-medium text-gray-700 mb-1">

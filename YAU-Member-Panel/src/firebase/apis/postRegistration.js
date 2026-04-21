@@ -123,72 +123,46 @@ export const completeRegistrationAfterPayment = async (paymentIntent) => {
 
     const registrationData = JSON.parse(pendingRegistration);
     
-    // ✅ FIXED: Use the correct data structure from pendingRegistration
     const { 
       parentFirst, 
       parentLast, 
       userEmail, 
       password, 
       mobile,
-      memberData, // This contains the actual form data
+      memberData, 
       selectedPlan 
     } = registrationData;
 
-    console.log('🔑 Password available for user creation:', !!password);
-    console.log('📋 Registration data structure:', { 
-      hasMemberData: !!memberData,
-      hasFormData: !!registrationData.formData,
-      parentFirst,
-      userEmail 
-    });
-
-    // ✅ FIXED: Use data from the correct structure
-    // Phone number should already include country code (e.g., "+1234567890")
-    const cleanPhone = mobile;
+    console.log('🚀 Completing registration via API...');
 
     const finalMemberData = {
-      // Parent info - use data from registrationData root level
       firstName: parentFirst || memberData?.firstName,
       lastName: parentLast || memberData?.lastName,
       email: userEmail || memberData?.email,
-      phone: cleanPhone || memberData?.phone,
-      // Note: location and sport are now per-student
-      // Keeping for backward compatibility (use first student's values)
+      password: password, // Backend will use this to create Auth user
+      phone: mobile || memberData?.phone,
       location: memberData?.students?.[0]?.location || memberData?.location || "",
       sport: memberData?.students?.[0]?.sport?.toUpperCase() || memberData?.sport?.toUpperCase() || '',
 
-      // Payment info
       paymentIntentId: paymentIntent.id,
       membershipType: "paid",
       isPaidMember: true,
       registrationPlan: selectedPlan,
       paymentStatus: "paid",
-      paidAt: new Date(),
+      paidAt: new Date().toISOString(),
 
-      // Children info - use students from memberData
-      students: (memberData?.students || []).map((student) => {
-        // Calculate ageGroup BEFORE converting date format (use original YYYY-MM-DD format)
-        // Keep ageGroup for backward compatibility, but use grade for roster/chat grouping
-        const originalDob = student.dob; // Keep original format for ageGroup calculation
-        const ageGroup = calculateAgeGroup(originalDob);
-        const convertedDob = ConvertYYMMDD(originalDob);
-        
-        return {
-          uid: doc(collection(db, "students")).id,
-          firstName: student.firstName,
-          lastName: student.lastName,
-          dob: convertedDob || originalDob, // Use converted format, fallback to original if conversion fails
-          ageGroup: ageGroup, // Keep for backward compatibility
-          grade: student.grade || "",
-          school_name: student.school_name || "",
-          sport: student.sport?.toUpperCase() || "",
-          location: student.location || "",
-          uniformTop: student.uniformTop || memberData?.uniformTop || "",
-          uniformBottom: student.uniformBottom || memberData?.uniformBottom || "",
-        };
-      }),
+      students: (memberData?.students || []).map((student) => ({
+        firstName: student.firstName,
+        lastName: student.lastName,
+        dob: ConvertYYMMDD(student.dob),
+        grade: student.grade || "",
+        school_name: student.school_name || "",
+        sport: student.sport?.toUpperCase() || "",
+        location: student.location || "",
+        uniformTop: student.uniformTop || "",
+        uniformBottom: student.uniformBottom || "",
+      })),
 
-      // Agreements - use data from memberData
       consentText: memberData?.consentText || false,
       registrationAgreement: memberData?.registrationAgreement || false,
       parentConduct: memberData?.parentConduct || false,
@@ -196,136 +170,34 @@ export const completeRegistrationAfterPayment = async (paymentIntent) => {
       encouragementCommitment: memberData?.encouragementCommitment || false,
       noRefundPolicy: memberData?.noRefundPolicy || false,
 
-      // Timestamps
-      createdAt: memberData?.createdAt || new Date(),
+      createdAt: new Date().toISOString(),
       registrationSource: "web",
     };
 
-    // 1. Create Firebase Auth user
-    console.log("👤 Creating Firebase Auth user...");
-    const authUID = await createFirebaseAuthUser(userEmail, password);
+    // 1. Call central API to create member (handles Auth, Firestore, Rosters, Chats, CC)
+    console.log("📝 Calling addMember API...");
+    const memberId = await addMember(finalMemberData);
     
-    // 2. Add to members collection
-    console.log("📝 Adding member to database...");
-    await addMember({ ...finalMemberData, uid: authUID });
-
-    // 3. ✅ CREATE UNIFORM ORDERS (MOVED HERE)
+    // 2. Create uniform orders if needed (via APIClient)
     if (selectedPlan === 'oneTime' && finalMemberData.students && finalMemberData.students.length > 0) {
-      console.log('👕 Creating uniform orders for one-time plan registration');
+      console.log('👕 Creating uniform orders...');
       await createUniformOrdersForRegistration({
-        memberData: { ...finalMemberData, uid: authUID },
+        memberData: { ...finalMemberData, uid: memberId },
         userEmail: userEmail,
-        userUID: authUID, // ✅ Now we have the real UID!
+        userUID: memberId,
         paymentIntentId: paymentIntent.id,
         students: finalMemberData.students
       });
     }
 
-    // 4. Process rosters and group chats
-    console.log("🚀 Processing students for rosters and group chats...");
-    const processingResults = [];
-
-    for (const student of finalMemberData.students) {
-      try {
-        // Add to roster
-        // Use grade for roster grouping (replacing ageGroup)
-        // Keep ageGroup for backward compatibility
-        const studentAgeGroup = student.ageGroup || calculateAgeGroup(student.dob);
-        const studentGrade = student.grade || "";
-        const studentSport = student.sport || finalMemberData.sport || "";
-        const studentLocation = student.location || finalMemberData.location || "";
-        
-        if (!studentGrade) {
-          console.warn(`⚠️ Student ${student.firstName} ${student.lastName} missing grade, skipping roster/chat creation`);
-          continue;
-        }
-        
-        if (!studentSport || !studentLocation) {
-          console.warn(`⚠️ Student ${student.firstName} ${student.lastName} missing sport or location, skipping roster/chat creation`);
-          continue;
-        }
-        
-        const rosterResult = await RosterService.addPlayerToRoster(
-          { 
-            ...finalMemberData, 
-            uid: authUID,
-            sport: studentSport,
-            location: studentLocation
-          },
-          {
-            firstName: student.firstName,
-            lastName: student.lastName,
-            dob: student.dob,
-            ageGroup: studentAgeGroup, // Keep for backward compatibility
-            grade: studentGrade,
-            school_name: student.school_name || "",
-            sport: studentSport,
-            location: studentLocation,
-          }
-        );
-
-        // Create group chat
-        const chatResult = await GroupChatService.createOrEnsureGroupChat(
-          { 
-            ...finalMemberData, 
-            uid: authUID,
-            sport: studentSport,
-            location: studentLocation
-          },
-          {
-            firstName: student.firstName,
-            lastName: student.lastName,
-            dob: student.dob,
-            ageGroup: studentAgeGroup, // Keep for backward compatibility
-            grade: studentGrade,
-            sport: studentSport,
-            location: studentLocation,
-          }
-        );
-
-        processingResults.push({
-          student: `${student.firstName} ${student.lastName}`,
-          roster: rosterResult,
-          chat: chatResult,
-          success: rosterResult.success && chatResult.success,
-        });
-
-      } catch (error) {
-        console.error(`Error processing student:`, error);
-        processingResults.push({
-          student: `${student.firstName} ${student.lastName}`,
-          success: false,
-          error: error.message,
-        });
-      }
-    }
-
-    // 5. Send welcome SMS
-    try {
-      console.log("📱 Sending welcome SMS to new member...");
-
-      // Get CSRF token first
-      const csrfToken = await APIClient.getCSRFToken();
-      console.log("🔑 Got CSRF token for SMS");
-
-      // Send welcome SMS
-      await APIClient.sendWelcomeSMS(cleanPhone, csrfToken, 'member');
-      console.log("✅ Welcome SMS sent successfully");
-
-    } catch (smsError) {
-      console.warn("⚠️ Failed to send welcome SMS:", smsError);
-      // Don't fail registration if SMS fails
-    }
-
-    // 6. Clear pending registration
+    // 3. Clear pending registration
     sessionStorage.removeItem("pendingRegistration");
 
-    console.log("✅ Registration completed successfully");
+    console.log("✅ Registration completed successfully via API");
     return {
       success: true,
-      userUID: authUID,
-      memberData: finalMemberData,
-      processingResults,
+      memberId,
+      data: finalMemberData
     };
 
   } catch (error) {

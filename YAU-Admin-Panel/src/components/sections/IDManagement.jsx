@@ -28,14 +28,13 @@ import {
   Trash2,
   CreditCard
 } from 'lucide-react';
-import { getMembers, bulkDeleteIDRecords } from '../../firebase/apis/api-parents.js';
-import { updateDoc, doc, getDoc, Timestamp } from "firebase/firestore";
-import { db } from "../../firebase/config.js";
+import { getMembers, updateMember, bulkDeleteIDRecords } from '../../firebase/apis/api-parents.js';
 import Header from '../layout/Header.jsx';
 import Button from '../common/Button.jsx';
 import Modal from '../common/Modal.jsx';
 import Table, { TableRow, TableCell } from '../common/Table.jsx';
 import { generateAndSaveIDCard, downloadGeneratedID } from '../../utils/IdGenerator.js';
+import { Timestamp } from 'firebase/firestore';
 
 const IDManagement = () => {
   const [members, setMembers] = useState([]);
@@ -141,28 +140,20 @@ const IDManagement = () => {
         throw new Error('Parent not found for this child');
       }
 
-      const parentRef = doc(db, "members", parent.id);
-      const parentSnap = await getDoc(parentRef);
-
-      if (!parentSnap.exists()) {
-        throw new Error("Parent document not found");
-      }
-
-      const parentData = parentSnap.data();
-      const updatedStudents = parentData.students.map(student =>
+      const updatedStudents = parent.students.map(student =>
         student.uid === childId
           ? {
             ...student,
             idStatus: status,
             idRejectionReason: reason || '',
-            idReviewedAt: Timestamp.now(),
+            idReviewedAt: new Date().toISOString(),
             idReviewedBy: 'admin',
             expirationDate: status === 'active' ? calculateExpirationDate() : student.expirationDate
           }
           : student
       );
 
-      await updateDoc(parentRef, { students: updatedStudents });
+      await updateMember(parent.id, { students: updatedStudents });
       return true;
     } catch (error) {
       console.error('Error updating child status:', error);

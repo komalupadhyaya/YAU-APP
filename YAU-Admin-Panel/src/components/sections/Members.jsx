@@ -40,6 +40,32 @@ import Modal from '../common/Modal';
 import Table, { TableRow, TableCell } from '../common/Table';
 import { API_CONFIG, buildApiUrl } from '../../firebase/config';
 
+const GRADE_OPTIONS = [
+  'Kindergarten',
+  '1st Grade',
+  '2nd Grade',
+  '3rd Grade',
+  '4th Grade',
+  '5th Grade',
+  '6th Grade',
+  '7th Grade',
+  '8th Grade',
+];
+
+const GRADE_BAND_MAP = {
+  'Kindergarten': 'Band 1',
+  '1st Grade': 'Band 1',
+  '2nd Grade': 'Band 2',
+  '3rd Grade': 'Band 2',
+  '4th Grade': 'Band 3',
+  '5th Grade': 'Band 3',
+  '6th Grade': 'Band 4',
+  '7th Grade': 'Band 4',
+  '8th Grade': 'Band 4',
+};
+
+const getGradeBand = (grade) => GRADE_BAND_MAP[grade] || null;
+
 // EditMemberForm Component
 const EditMemberForm = ({ member, onSave, onCancel, loading }) => {
   const [formData, setFormData] = useState({
@@ -132,6 +158,7 @@ const EditMemberForm = ({ member, onSave, onCancel, loading }) => {
         firstName: '',
         lastName: '',
         dob: '',
+        grade: '',
         ageGroup: ''
       }]
     }));
@@ -375,6 +402,21 @@ const EditMemberForm = ({ member, onSave, onCancel, loading }) => {
                 onChange={(e) => updateStudent(index, 'dob', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+              <select
+                value={student.grade || ''}
+                onChange={(e) => {
+                  const grade = e.target.value;
+                  const band = getGradeBand(grade);
+                  updateStudent(index, 'grade', grade);
+                  if (band) updateStudent(index, 'grade_band', band);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Select Grade</option>
+                {GRADE_OPTIONS.map(g => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
+              </select>
               <input
                 type="text"
                 value={student.ageGroup || ''}

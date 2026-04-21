@@ -9,6 +9,7 @@ const {
   setDoc,
 } = require("firebase/firestore");
 const {db} = require("../utils/firebase");
+const MemberService = require("./memberService");
 
 class MembershipService {
   // Find user in both collections by email
@@ -105,6 +106,9 @@ class MembershipService {
       // Update the user document using client SDK
       await updateDoc(userInfo.docRef, updateData);
 
+      // sync rosters
+      await MemberService.syncRosterChangesForMember(userInfo.id, userInfo.data, updateData);
+
       console.log("✅ Membership upgraded successfully");
 
       return {
@@ -200,6 +204,9 @@ class MembershipService {
       };
 
       await setDoc(memberRef, memberDoc);
+
+      // sync rosters
+      await MemberService.syncRosterChangesForMember(memberData.uid, {}, memberDoc);
 
       console.log("✅ Member created successfully");
       return {

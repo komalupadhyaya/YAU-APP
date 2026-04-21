@@ -104,7 +104,7 @@ function pickupApiBase(): string {
   // Example: http://127.0.0.1:5001/yau-app/us-central1/apis
   return (
     (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/+$/, "") ||
-    "http://127.0.0.1:5001/yau-app/us-central1/apis"
+    "https://us-central1-yau-app.cloudfunctions.net/apis"
   );
 }
 

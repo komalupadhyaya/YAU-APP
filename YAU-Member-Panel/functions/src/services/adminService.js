@@ -493,6 +493,146 @@ class AdminService {
     }
     return password;
   }
+
+  // Batch assign coach to multiple rosters
+  static async batchAssignCoachToRosters(coachId, assignmentData) {
+    const { assignedGroups, assignedLocations, primarySport } = assignmentData;
+    const { collection, doc, getDoc, updateDoc, writeBatch, serverTimestamp } = require('firebase/firestore');
+    
+    console.log(`👨‍🏫 Batch assigning coach ${coachId} to rosters:`, assignmentData);
+
+    // Fetch coach document first
+    const coachRef = doc(db, 'users', coachId);
+    const coachSnap = await getDoc(coachRef);
+    if (!coachSnap.exists()) {
+      throw new Error('Coach not found');
+    }
+    const coachData = coachSnap.data();
+
+    const batch = writeBatch(db);
+    const assignedTeams = [];
+    let rostersUpdated = 0;
+
+    for (const location of assignedLocations) {
+      for (const ageGroup of assignedGroups) {
+        const rosterId = `${primarySport.toLowerCase().replace(/\s+/g, '-')}-${ageGroup.toLowerCase()}-${location.toLowerCase().replace(/\s+/g, '-')}`;
+        const rosterRef = doc(db, 'rosters', rosterId);
+        const rosterSnap = await getDoc(rosterRef);
+
+        if (rosterSnap.exists()) {
+          const existingRoster = rosterSnap.data();
+          batch.update(rosterRef, {
+            coachId: coachId,
+            coachName: `${coachData.firstName} ${coachData.lastName}`,
+            hasAssignedCoach: true,
+            status: existingRoster.hasPlayers ? 'active' : 'needs-players',
+            lastUpdated: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          });
+
+          assignedTeams.push({
+            id: rosterId,
+            sport: primarySport,
+            ageGroup: ageGroup,
+            location: location,
+            teamName: existingRoster.teamName || `${ageGroup} ${primarySport} - ${location}`,
+            isPrimary: true,
+            playerCount: existingRoster.playerCount || 0
+          });
+          rostersUpdated++;
+        }
+      }
+    }
+
+    if (rostersUpdated > 0) {
+      batch.update(coachRef, {
+        primarySport,
+        secondarySports: assignmentData.secondarySports || [],
+        assignedGroups,
+        assignedLocations,
+        assignedTeams,
+        updatedAt: serverTimestamp()
+      });
+      await batch.commit();
+    }
+
+    return {
+      success: true,
+      rostersUpdated,
+      assignedTeams
+    };
+  }
+
+  // Batch assign players (students) to rosters
+  static async batchAssignPlayersToRosters(parentId, assignments) {
+    const { doc, getDoc, updateDoc, writeBatch, serverTimestamp } = require('firebase/firestore');
+    
+    console.log(`🎯 Batch assigning players for parent ${parentId}`);
+
+    const batch = writeBatch(db);
+    let assignedCount = 0;
+
+    for (const assignment of assignments) {
+      const { rosterId, student } = assignment;
+      const rosterRef = doc(db, 'rosters', rosterId);
+      const rosterSnap = await getDoc(rosterRef);
+
+      if (rosterSnap.exists()) {
+        const rosterData = rosterSnap.data();
+        const existingParticipants = rosterData.participants || [];
+        const participantId = `${parentId}-${student.name || student.firstName}`;
+        
+        const existingIndex = existingParticipants.findIndex(p => p.id === participantId);
+        
+        const participantData = {
+          id: participantId,
+          name: student.name || student.firstName,
+          firstName: student.firstName,
+          lastName: student.lastName,
+          dob: student.dob,
+          ageGroup: student.ageGroup,
+          parentId,
+          // Add parent details if available or needed
+          assignedAt: new Date().toISOString(),
+          assignedBy: 'admin'
+        };
+
+        let updatedParticipants;
+        if (existingIndex >= 0) {
+          updatedParticipants = [...existingParticipants];
+          updatedParticipants[existingIndex] = participantData;
+        } else {
+          updatedParticipants = [...existingParticipants, participantData];
+        }
+
+        batch.update(rosterRef, {
+          participants: updatedParticipants,
+          players: updatedParticipants,
+          playerCount: updatedParticipants.length,
+          hasPlayers: true,
+          status: 'active',
+          lastUpdated: serverTimestamp()
+        });
+        assignedCount++;
+      }
+    }
+
+    if (assignedCount > 0) {
+      const parentRef = doc(db, 'members', parentId);
+      batch.update(parentRef, {
+        assignedAt: serverTimestamp(),
+        assignedBy: 'admin',
+        lastAssignmentUpdate: new Date().toISOString()
+      });
+      await batch.commit();
+    }
+
+    return {
+      success: true,
+      assignedCount
+    };
+  }
 }
+
 
 module.exports = AdminService;

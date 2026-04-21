@@ -2,6 +2,7 @@ const admin = require("firebase-admin");
 const express = require("express");
 const helmet = require("helmet");
 const cors = require('cors');
+const functions = require("firebase-functions");
 
 // Load environment variables for local development
 require('dotenv').config();
@@ -258,9 +259,9 @@ app.use('/timesheets', timesheetRoutes);
 app.use('/adminTimesheetRoutes', adminTimesheetRoutes);
 app.use('/constant-contact', constantContactRoutes);
 app.use('/forgot-password',forgotPasswordRoutes)
+app.use('/admin/coach-assignments', coachAssignmentsRoutes);
 app.use("/pickup", pickupRoutes);
 app.use('/sms', smsRoutes);
-// MOVED UP app.use('/admin/coach-assignments', coachAssignmentsRoutes);
 
 // Error handling
 app.use((error, req, res, _next) => {
@@ -281,7 +282,13 @@ app.use("*", (req, res) => {
   });
 });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+// Cloud Function Export
+exports.apis = functions.https.onRequest(app);
+
+// Local testing (only when not running in Cloud Functions)
+if (!process.env.FUNCTION_NAME && !process.env.K_SERVICE && require.main === module) {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => {
+    console.log(`Server running locally on port ${PORT}`);
+  });
+}

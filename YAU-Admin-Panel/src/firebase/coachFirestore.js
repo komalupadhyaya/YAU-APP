@@ -1,4 +1,13 @@
-// coach-panel/src/firebase/coachFirestore.js
+import { 
+  getLocations, 
+  getRosters, 
+  addEvent, 
+  addMessage, 
+  updateSchedule,
+  apiCall
+} from './firestore';
+import { updateMember, getMemberById } from "../firebase/apis/api-parents";
+import { db, API_CONFIG, buildApiUrl } from './config';
 import { 
   collection, 
   query, 
@@ -6,20 +15,22 @@ import {
   getDocs, 
   doc, 
   getDoc, 
-  addDoc, 
-  updateDoc,
-  serverTimestamp,
   onSnapshot,
   orderBy,
-  limit
+  limit,
+  addDoc,
+  serverTimestamp
 } from 'firebase/firestore';
-import { db } from './config';
+
+// ... (getCoachRosters, getTeamPlayers, createPracticeEvent kept as they use firestore.js API wrappers)
 
 // Get coach's assigned teams/rosters
 export const getCoachRosters = async (coachId) => {
   try {
     console.log('🔍 Fetching rosters for coach:', coachId);
     
+    // Fallback to Firestore for now as there's no specific "getCoachRosters" API yet,
+    // though getRosters() exists and we filter.
     const rostersQuery = query(
       collection(db, 'rosters'),
       where('coachId', '==', coachId)
@@ -60,48 +71,35 @@ export const getTeamPlayers = async (rosterId) => {
 // Create practice/event
 export const createPracticeEvent = async (eventData) => {
   try {
-    console.log('📅 Creating practice event:', eventData.title);
-    
-    const docRef = await addDoc(collection(db, 'events'), {
+    const eventId = await addEvent({
       ...eventData,
-      type: 'practice',
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
+      type: 'practice'
     });
     
-    console.log('✅ Practice created:', docRef.id);
-    return docRef.id;
+    console.log('✅ Practice created via API:', eventId);
+    return eventId;
   } catch (error) {
     console.error('❌ Error creating practice:', error);
     throw error;
   }
 };
 
-// Report game score
+// Report game score via API
 export const reportGameScore = async (gameData) => {
   try {
-    console.log('🏆 Reporting game score:', gameData);
+    console.log('🏆 Reporting game score via API:', gameData);
     
-    // Update game schedule if gameId exists
-    if (gameData.gameId) {
-      await updateDoc(doc(db, 'game_schedules', gameData.gameId), {
-        homeScore: gameData.homeScore,
-        awayScore: gameData.awayScore,
-        status: 'completed',
-        reportedBy: gameData.coachId,
-        reportedAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
+    if (!gameData.gameId) {
+      throw new Error("Game ID is required to report score");
     }
 
-    // Create game result record
-    const gameResult = await addDoc(collection(db, 'game_results'), {
-      ...gameData,
-      createdAt: serverTimestamp()
+    const result = await apiCall(buildApiUrl(API_CONFIG.endpoints.gameSchedules.reportScore, { id: gameData.gameId }), {
+      method: 'POST',
+      body: JSON.stringify(gameData)
     });
 
-    console.log('✅ Game score reported:', gameResult.id);
-    return gameResult.id;
+    console.log('✅ Game score reported via API');
+    return result.id || result;
   } catch (error) {
     console.error('❌ Error reporting game score:', error);
     throw error;
@@ -172,15 +170,10 @@ export const getCoachSchedule = async (coachId) => {
 // Send message to team
 export const sendTeamMessage = async (messageData) => {
   try {
-    console.log('📨 Sending team message');
+    const messageId = await addMessage(messageData);
     
-    const docRef = await addDoc(collection(db, 'parent_messages'), {
-      ...messageData,
-      timestamp: serverTimestamp()
-    });
-    
-    console.log('✅ Team message sent:', docRef.id);
-    return docRef.id;
+    console.log('✅ Team message sent via API:', messageId);
+    return messageId;
   } catch (error) {
     console.error('❌ Error sending team message:', error);
     throw error;
@@ -242,20 +235,17 @@ export const subscribeToGroupChat = (rosterId, callback) => {
   }
 };
 
-// Send group chat message
+// Send group chat message via API
 export const sendGroupMessage = async (rosterId, messageData) => {
   try {
-    console.log('💬 Sending group message to:', rosterId);
+    console.log('💬 Sending group message via API to:', rosterId);
     
-    const chatRef = doc(db, 'groupChats', rosterId);
-    const messagesRef = collection(chatRef, 'messages');
-    
-    await addDoc(messagesRef, {
-      ...messageData,
-      timestamp: serverTimestamp()
-    });
-    
-    console.log('✅ Group message sent');
+    await apiCall(buildApiUrl(API_CONFIG.endpoints.community.addComment, { postId: rosterId }), {
+        method: 'POST',
+        body: JSON.stringify(messageData)
+      });
+
+    console.log('✅ Group message sent via API');
   } catch (error) {
     console.error('❌ Error sending group message:', error);
     throw error;

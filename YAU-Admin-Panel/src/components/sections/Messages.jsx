@@ -42,7 +42,7 @@ import {
 } from "lucide-react";
 import { LinearProgress, Snackbar, Alert } from "@mui/material";
 import { Autocomplete } from "../common/AutoComplete";
-import { deleteDoc, doc } from "firebase/firestore";
+
 
 const Messages = () => {
   const { user } = useAuth();
@@ -227,7 +227,7 @@ const Messages = () => {
           if (messageToDelete?.imageUrl) {
             await deleteImageFromFirebase(messageToDelete.imageUrl);
           }
-          await deleteDoc(doc(db, "admin_posts", messageId));
+          await deleteMessage(messageId);
         });
 
         await Promise.all(deletePromises);
@@ -266,7 +266,7 @@ const Messages = () => {
         if (messageToDelete?.imageUrl) {
           await deleteImageFromFirebase(messageToDelete.imageUrl);
         }
-        await deleteDoc(doc(db, "admin_posts", id));
+        await deleteMessage(id);
         setSnackbar({
           open: true,
           message: "Message deleted successfully.",

@@ -30,9 +30,8 @@ export const API_CONFIG = {
   //   ? 'https://us-central1-yau-app.cloudfunctions.net/api'
   //   : 'https://us-central1-yau-app.cloudfunctions.net/api',
   baseURL: process.env.NODE_ENV === "development"
-    ?'http://127.0.0.1:5001/yau-app/us-central1/apis' //// local
-    // ? 'https://yau-app.onrender.com' //// live 
-    : 'https://yau-app.onrender.com',
+    ? 'https://us-central1-yau-app.cloudfunctions.net/apis' //// local
+    : 'https://us-central1-yau-app.cloudfunctions.net/apis',
 
   endpoints: {
 
@@ -84,7 +83,7 @@ export const API_CONFIG = {
       update: '/messages/:id',
       delete: '/messages/:id',
       getForGroup: '/messages/group/targeted',
-      
+
     },
 
     // Admin notifications (admin_posts collection)
@@ -101,7 +100,7 @@ export const API_CONFIG = {
       create: '/team-messages',
       getAll: '/team-messages'
     },
-    
+
     // Roster-based team chats
     rosterTeamChats: {
       getMemberChats: '/chats/member-team-chats',

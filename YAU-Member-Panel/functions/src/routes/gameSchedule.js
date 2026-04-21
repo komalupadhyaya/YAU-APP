@@ -10,6 +10,7 @@ router.post("/", GameScheduleController.addSchedule);
 router.post("/bulk-delete", GameScheduleController.bulkDeleteSchedules);
 router.put("/:id", GameScheduleController.updateSchedule);
 router.delete("/:id", GameScheduleController.deleteSchedule);
+router.post("/:id/report-score", GameScheduleController.reportScore);
 
 // Notifications
 router.post("/notifications/send", GameScheduleController.sendGameNotification);

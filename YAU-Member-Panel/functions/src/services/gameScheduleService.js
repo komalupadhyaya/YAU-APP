@@ -17,8 +17,9 @@ const {
   documentId,
   serverTimestamp,
 } = require("firebase/firestore");
-const ParentService = require("./parentService");
+const MemberService = require("./memberService");
 const CoachService = require("./coachService");
+const axios = require("axios");
 
 const COLLECTIONS = {
   SCHEDULES: "schedules",
@@ -100,6 +101,36 @@ class GameScheduleService {
       });
     } catch (error) {
       console.error("Error updating schedule:", error);
+      throw error;
+    }
+  }
+
+  static async reportScore(id, scoreData) {
+    try {
+      const batch = writeBatch(db);
+      
+      // 1. Update the schedule document
+      const scheduleRef = doc(db, COLLECTIONS.SCHEDULES, id);
+      batch.update(scheduleRef, {
+        homeScore: scoreData.homeScore,
+        awayScore: scoreData.awayScore,
+        status: 'completed',
+        reportedBy: scoreData.coachId,
+        updatedAt: serverTimestamp()
+      });
+
+      // 2. Add to game_results collection
+      const resultRef = doc(collection(db, 'game_results'));
+      batch.set(resultRef, {
+        gameId: id,
+        ...scoreData,
+        createdAt: serverTimestamp()
+      });
+
+      await batch.commit();
+      return resultRef.id;
+    } catch (error) {
+      console.error("Error reporting score:", error);
       throw error;
     }
   }
@@ -355,7 +386,7 @@ class GameScheduleService {
       });
 
       const [parentsData, coachesData] = await Promise.all([
-        ParentService.getParents(),
+        MemberService.getMembers(),
         CoachService.getCoaches()
       ]);
 
@@ -390,6 +421,7 @@ class GameScheduleService {
           location: parent.location,
           smsOptIn: parent.smsOptIn || parent.smsOtpIn,
           fcmToken: parent.fcmToken,
+          expoPushTokens: parent.expoPushTokens || [],
           children: parent.students.filter(student =>
             ageGroups.includes(student.ageGroup || this.calculateAgeGroup(student.dob))
           ).map(student => ({
@@ -424,6 +456,7 @@ class GameScheduleService {
           email: coach.email,
           phone: coach.phone,
           primarySport: coach.primarySport,
+          expoPushTokens: coach.expoPushTokens || [],
           assignedTeams: coach.assignedTeams?.filter(team =>
             team.sport === gameData.sport && ageGroups.includes(team.ageGroup)
           ) || []
@@ -454,6 +487,11 @@ class GameScheduleService {
         ...recipients.parentIds.map(p => p.id),
         ...recipients.coachIds.map(c => c.id)
       ];
+      
+      const allTokens = [
+        ...recipients.parentIds.flatMap(p => p.expoPushTokens || []),
+        ...recipients.coachIds.flatMap(c => c.expoPushTokens || [])
+      ].filter(token => typeof token === 'string' && token.startsWith('ExponentPushToken'));
 
       if (allRecipientIds.length > 0) {
         await addDoc(collection(db, COLLECTIONS.MOBILE_NOTIFICATIONS), {
@@ -473,10 +511,41 @@ class GameScheduleService {
           interacted: false
         });
 
-        // Note: Actual FCM push notifications would be handled by a separate service
-        // This could be implemented as a cloud function or external service
-
         console.log(`Enhanced mobile notification saved for ${allRecipientIds.length} recipients`);
+        
+        // Handle Actual Expo Push Notification
+        if (allTokens.length > 0) {
+          const messages = allTokens.map(token => ({
+            to: token,
+            sound: 'default',
+            title: payload.title,
+            body: payload.body,
+            data: payload.data,
+          }));
+
+          // The Expo push API handles batches of up to 100 max.
+          const chunks = [];
+          for (let i = 0; i < messages.length; i += 100) {
+            chunks.push(messages.slice(i, i + 100));
+          }
+
+          for (const chunk of chunks) {
+            try {
+              const response = await axios.post('https://exp.host/--/api/v2/push/send', chunk, {
+                headers: {
+                  'Accept': 'application/json',
+                  'Accept-encoding': 'gzip, deflate',
+                  'Content-Type': 'application/json',
+                }
+              });
+              console.log('Successfully sent Expo push notification batch:', response.data);
+            } catch (chunkError) {
+              console.error('Error sending Expo push notification chunk:', chunkError);
+            }
+          }
+        } else {
+          console.log('No valid Expo push tokens found among recipients.');
+        }
       }
     } catch (error) {
       console.error("Error sending mobile notifications:", error);

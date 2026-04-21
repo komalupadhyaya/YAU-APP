@@ -15,6 +15,21 @@ const {
 const { getFunctions, httpsCallable } = require("firebase/functions");
 const RosterService = require("./rosterService");
 const admin = require("firebase-admin");
+const GroupChatService = require("./groupChatService");
+
+const GRADE_BAND_MAP = {
+  'Kindergarten': 'Band 1',
+  '1st Grade': 'Band 1',
+  '2nd Grade': 'Band 2',
+  '3rd Grade': 'Band 2',
+  '4th Grade': 'Band 3',
+  '5th Grade': 'Band 3',
+  '6th Grade': 'Band 4',
+  '7th Grade': 'Band 4',
+  '8th Grade': 'Band 4',
+};
+
+const getGradeBand = (grade) => GRADE_BAND_MAP[grade] || null;
 
 class MemberService {
 static async getMembers() {
@@ -351,46 +366,172 @@ static async getMemberById(id) {
 
       for (const student of memberData.students || []) {
         if (!student.name && !student.firstName) continue;
-        const childName = student.name || student.firstName;
+        const childName = student.name || `${student.firstName} ${student.lastName}`.trim();
         const childAgeGroup = student.ageGroup || RosterService.calculateAgeGroup(student.dob);
-        if (!childAgeGroup || !mappedSport || !memberData.location) continue;
+        const childGrade = student.grade || "";
+        if (!childGrade || !mappedSport || !memberData.location) continue;
 
-        const rosterId = `${mappedSport.toLowerCase().replace(/\s+/g, "-")}-${childAgeGroup.toLowerCase()}-${memberData.location.replace(/\s+/g, "-").toLowerCase()}`;
-        const rosterRef = doc(db, "rosters", rosterId);
-        const rosterSnap = await getDoc(rosterRef);
-
-        if (rosterSnap.exists()) {
-          const rosterData = rosterSnap.data();
-          const studentId = `${parentId}-${childName}`;
-          const updatedParticipants = (rosterData.participants || []).filter(p => p.id !== studentId);
-          const newPlayerCount = updatedParticipants.length;
-
-          if (newPlayerCount === 0 && !rosterData.hasAssignedCoach) {
-            batch.delete(rosterRef);
-          } else {
-            let newStatus = "empty";
-            if (newPlayerCount > 0 && rosterData.hasAssignedCoach) {
-              newStatus = newPlayerCount >= 6 ? "active" : "forming";
-            } else if (newPlayerCount > 0 && !rosterData.hasAssignedCoach) {
-              newStatus = "needs-coach";
-            } else if (newPlayerCount === 0 && rosterData.hasAssignedCoach) {
-              newStatus = "needs-players";
-            }
-            batch.update(rosterRef, {
-              participants: updatedParticipants,
-              players: updatedParticipants,
-              playerCount: newPlayerCount,
-              hasPlayers: newPlayerCount > 0,
-              status: newStatus,
-              lastUpdated: serverTimestamp(),
-            });
-          }
-        }
+        const rosterId = `${mappedSport.toLowerCase().replace(/\s+/g, "-")}-${childGrade.toLowerCase().replace(/\s+/g, "-")}-${memberData.location.replace(/\s+/g, "-").toLowerCase()}`;
+        await this.removeStudentFromSpecificRoster(parentId, student, rosterId, batch);
       }
       await batch.commit();
     } catch (error) {
       console.error("Error removing students from rosters:", error);
       throw error;
+    }
+  }
+
+  static async addStudentToRoster(parentId, parentData, student, batch) {
+    const sportMapping = { "Flag Football": "Football", "Tackle Football": "Football" };
+    const mappedSport = sportMapping[parentData.sport] || parentData.sport;
+    const childGrade = student.grade || "";
+    if (!childGrade) return;
+
+    const rosterId = `${mappedSport.toLowerCase().replace(/\s+/g, "-")}-${childGrade.toLowerCase().replace(/\s+/g, "-")}-${parentData.location.replace(/\s+/g, "-").toLowerCase()}`;
+    await this.addStudentToSpecificRoster(parentId, parentData, student, rosterId, batch);
+  }
+
+  static async removeStudentFromRoster(parentId, parentData, student, batch) {
+    const sportMapping = { "Flag Football": "Football", "Tackle Football": "Football" };
+    const mappedSport = sportMapping[parentData.sport] || parentData.sport;
+    const childGrade = student.grade || "";
+    if (!childGrade) return;
+
+    const rosterId = `${mappedSport.toLowerCase().replace(/\s+/g, "-")}-${childGrade.toLowerCase().replace(/\s+/g, "-")}-${parentData.location.replace(/\s+/g, "-").toLowerCase()}`;
+    await this.removeStudentFromSpecificRoster(parentId, student, rosterId, batch);
+  }
+
+  static async updateStudentInRoster(parentId, parentData, student, batch) {
+    await this.removeStudentFromRoster(parentId, parentData, student, batch);
+    await this.addStudentToRoster(parentId, parentData, student, batch);
+  }
+
+  static async addStudentToSpecificRoster(parentId, parentData, student, rosterId, batch) {
+    const rosterRef = doc(db, "rosters", rosterId);
+    const rosterSnap = await getDoc(rosterRef);
+
+    const childName = student.name || `${student.firstName} ${student.lastName}`.trim();
+    const childGrade = student.grade || "";
+    const childGradeBand = student.grade_band || getGradeBand(childGrade);
+
+    const newParticipant = {
+      id: `${parentId}-${childName}`,
+      name: childName,
+      firstName: student.firstName || childName.split(" ")[0],
+      lastName: student.lastName || childName.split(" ")[1] || "",
+      dob: student.dob,
+      ageGroup: student.ageGroup || RosterService.calculateAgeGroup(student.dob),
+      grade: childGrade,
+      grade_band: childGradeBand,
+      parentId: parentId,
+      parentName: `${parentData.firstName} ${parentData.lastName}`,
+      parentEmail: parentData.email,
+      parentPhone: parentData.phone,
+      sport: parentData.sport,
+      location: parentData.location,
+      registeredAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      status: "active",
+    };
+
+    if (rosterSnap.exists()) {
+      const existingRoster = rosterSnap.data();
+      const participants = existingRoster.participants || [];
+      const updatedParticipants = [...participants.filter((p) => p.id !== newParticipant.id), newParticipant];
+
+      const newPlayerCount = updatedParticipants.length;
+      let newStatus = "empty";
+      if (newPlayerCount > 0 && existingRoster.hasAssignedCoach) {
+        newStatus = newPlayerCount >= (existingRoster.minPlayers || 6) ? "active" : "forming";
+      } else if (newPlayerCount > 0 && !existingRoster.hasAssignedCoach) {
+        newStatus = "needs-coach";
+      }
+
+      batch.update(rosterRef, {
+        participants: updatedParticipants,
+        players: updatedParticipants,
+        playerCount: newPlayerCount,
+        hasPlayers: true,
+        status: newStatus,
+        lastUpdated: serverTimestamp(),
+      });
+
+      // Sync to group chat
+      try {
+        await GroupChatService.createOrEnsureGroupChat(parentData, student);
+      } catch (chatError) {
+        console.error("⚠️ Error syncing to group chat:", chatError.message);
+      }
+    } else {
+      const sportMapping = { "Flag Football": "Football", "Tackle Football": "Football" };
+      const mappedSport = sportMapping[parentData.sport] || parentData.sport;
+
+      const newRoster = {
+        id: rosterId,
+        teamName: `${childGrade} ${mappedSport} - ${parentData.location}`,
+        sport: mappedSport,
+        grade: childGrade,
+        grade_band: childGradeBand,
+        ageGroup: newParticipant.ageGroup,
+        location: parentData.location,
+        coachId: null,
+        coachName: "Unassigned",
+        hasAssignedCoach: false,
+        participants: [newParticipant],
+        players: [newParticipant],
+        playerCount: 1,
+        hasPlayers: true,
+        status: "needs-coach",
+        createdAt: serverTimestamp(),
+        lastUpdated: serverTimestamp(),
+        isActive: false,
+        maxPlayers: 20,
+        minPlayers: 6,
+      };
+      batch.set(rosterRef, newRoster);
+
+      // Sync to group chat
+      try {
+        await GroupChatService.createOrEnsureGroupChat(parentData, student);
+      } catch (chatError) {
+        console.error("⚠️ Error syncing to group chat (new):", chatError.message);
+      }
+    }
+  }
+
+  static async removeStudentFromSpecificRoster(parentId, student, rosterId, batch) {
+    const rosterRef = doc(db, "rosters", rosterId);
+    const rosterSnap = await getDoc(rosterRef);
+
+    if (rosterSnap.exists()) {
+      const existingRoster = rosterSnap.data();
+      const childName = student.name || `${student.firstName} ${student.lastName}`.trim();
+      const studentId = `${parentId}-${childName}`;
+
+      const updatedParticipants = (existingRoster.participants || []).filter((p) => p.id !== studentId);
+      const newPlayerCount = updatedParticipants.length;
+
+      if (newPlayerCount === 0 && !existingRoster.hasAssignedCoach) {
+        batch.delete(rosterRef);
+      } else {
+        let newStatus = "empty";
+        if (newPlayerCount > 0 && existingRoster.hasAssignedCoach) {
+          newStatus = newPlayerCount >= (existingRoster.minPlayers || 6) ? "active" : "forming";
+        } else if (newPlayerCount > 0 && !existingRoster.hasAssignedCoach) {
+          newStatus = "needs-coach";
+        } else if (newPlayerCount === 0 && existingRoster.hasAssignedCoach) {
+          newStatus = "needs-players";
+        }
+
+        batch.update(rosterRef, {
+          participants: updatedParticipants,
+          players: updatedParticipants,
+          playerCount: newPlayerCount,
+          hasPlayers: newPlayerCount > 0,
+          status: newStatus,
+          lastUpdated: serverTimestamp(),
+        });
+      }
     }
   }
 

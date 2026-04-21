@@ -366,6 +366,31 @@ class AdminController {
       });
     }
   }
+  // Batch assign coach to rosters
+  static async batchAssignCoachToRosters(req, res) {
+    try {
+      const { coachId } = req.params;
+      const assignmentData = req.body;
+      const result = await AdminService.batchAssignCoachToRosters(coachId, assignmentData);
+      res.status(200).json(result);
+    } catch (error) {
+      console.error('❌ Error in batchAssignCoachToRosters:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+
+  // Batch assign players to rosters
+  static async batchAssignPlayersToRosters(req, res) {
+    try {
+      const { parentId } = req.params;
+      const { assignments } = req.body;
+      const result = await AdminService.batchAssignPlayersToRosters(parentId, assignments);
+      res.status(200).json(result);
+    } catch (error) {
+      console.error('❌ Error in batchAssignPlayersToRosters:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
 }
 
 module.exports = AdminController;

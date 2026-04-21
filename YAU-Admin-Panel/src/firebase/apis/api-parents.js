@@ -4,6 +4,20 @@ import { calculateAgeGroup } from "../firestore";
 import { db } from "../config";
 import { doc, getDoc, writeBatch } from "firebase/firestore";
 
+const GRADE_BAND_MAP = {
+  'Kindergarten': 'Band 1',
+  '1st Grade': 'Band 1',
+  '2nd Grade': 'Band 2',
+  '3rd Grade': 'Band 2',
+  '4th Grade': 'Band 3',
+  '5th Grade': 'Band 3',
+  '6th Grade': 'Band 4',
+  '7th Grade': 'Band 4',
+  '8th Grade': 'Band 4',
+};
+
+const getGradeBand = (grade) => GRADE_BAND_MAP[grade] || null;
+
 // Helper function for API calls
 const apiCall = async (url, options = {}) => {
   try {
@@ -47,155 +61,20 @@ export const getMemberById = async (id) => {
   }
 };
 
-// Enhanced updateMember function with roster sync
+// Enhanced updateMember function using API
 export const updateMember = async (id, updates) => {
   try {
-    console.log('✏️ Updating member with roster sync:', id, updates);
-
-    // Get the current member data first
-    const currentMemberData = await getMemberById(id);
-    if (!currentMemberData) {
-      throw new Error('Member not found');
-    }
-
-    // Update the member via API
-    await apiCall(buildApiUrl(API_CONFIG.endpoints.members.update, { id }), {
+    console.log('✏️ Updating member via API:', id, updates);
+    return await apiCall(buildApiUrl(API_CONFIG.endpoints.members.update, { id }), {
       method: 'PUT',
       body: JSON.stringify(updates)
     });
-
-    // Sync roster changes based on what was updated
-    await syncRosterChangesForMember(id, currentMemberData, updates);
-
-    console.log('✅ Member updated with roster sync completed');
-    return { success: true, message: 'Member updated successfully with roster sync' };
   } catch (error) {
     console.error('❌ Error updating member:', error);
     throw error;
   }
 };
 
-// Function to sync roster changes when parent is updated
-const syncRosterChangesForMember = async (parentId, oldMemberData, newMemberData) => {
-  try {
-    console.log('🔄 Syncing roster changes for parent:', parentId);
-
-    const sportMapping = { 'Flag Football': 'Football', 'Tackle Football': 'Football' };
-
-    // Determine what changed
-    const oldStudents = oldMemberData.students || [];
-    const newStudents = newMemberData.students || [];
-    const oldSport = sportMapping[oldMemberData.sport] || oldMemberData.sport;
-    const newSport = sportMapping[newMemberData.sport] || newMemberData.sport;
-    const oldLocation = oldMemberData.location;
-    const newLocation = newMemberData.location;
-
-    // Track changes
-    let changesDetected = {
-      sportChanged: oldSport !== newSport,
-      locationChanged: oldLocation !== newLocation,
-      studentsAdded: [],
-      studentsRemoved: [],
-      studentsModified: []
-    };
-
-    // Detect student changes
-    const oldStudentIds = oldStudents.map(s => s.name || `${s.firstName} ${s.lastName}`);
-    const newStudentIds = newStudents.map(s => s.name || `${s.firstName} ${s.lastName}`);
-
-    // Find added students
-    changesDetected.studentsAdded = newStudents.filter(newStudent => {
-      const newStudentId = newStudent.name || `${newStudent.firstName} ${newStudent.lastName}`;
-      return !oldStudentIds.includes(newStudentId);
-    });
-
-    // Find removed students
-    changesDetected.studentsRemoved = oldStudents.filter(oldStudent => {
-      const oldStudentId = oldStudent.name || `${oldStudent.firstName} ${oldStudent.lastName}`;
-      return !newStudentIds.includes(oldStudentId);
-    });
-
-    // Find modified students (same name but different data)
-    changesDetected.studentsModified = newStudents.filter(newStudent => {
-      const newStudentId = newStudent.name || `${newStudent.firstName} ${newStudent.lastName}`;
-      const oldStudent = oldStudents.find(os =>
-        (os.name || `${os.firstName} ${os.lastName}`) === newStudentId
-      );
-
-      if (!oldStudent) return false;
-
-      return (
-        oldStudent.dob !== newStudent.dob ||
-        oldStudent.ageGroup !== newStudent.ageGroup ||
-        JSON.stringify(oldStudent) !== JSON.stringify(newStudent)
-      );
-    });
-
-    console.log('📋 Detected changes:', changesDetected);
-
-    // Handle sport or location changes - need to move all students
-    if (changesDetected.sportChanged || changesDetected.locationChanged) {
-      await handleMemberSportLocationChange(
-        parentId,
-        oldMemberData,
-        newMemberData
-      );
-    }
-
-    // Handle added students
-    for (const addedStudent of changesDetected.studentsAdded) {
-      await addStudentToRoster(
-        parentId,
-        newMemberData,
-        addedStudent
-      );
-    }
-
-    // Handle removed students
-    for (const removedStudent of changesDetected.studentsRemoved) {
-      await removeStudentFromRoster(
-        parentId,
-        oldMemberData,
-        removedStudent
-      );
-    }
-
-    // Handle modified students
-    for (const modifiedStudent of changesDetected.studentsModified) {
-      await updateStudentInRoster(
-        parentId,
-        newMemberData,
-        modifiedStudent
-      );
-    }
-
-    console.log('✅ Roster sync completed for parent update');
-
-  } catch (error) {
-    console.error('❌ Error syncing roster changes:', error);
-    throw error;
-  }
-};
-
-const handleMemberSportLocationChange = async (parentId, oldMemberData, newMemberData) => {
-  console.log('🔄 Handling sport/location change for parent:', parentId);
-
-  const sportMapping = { 'Flag Football': 'Football', 'Tackle Football': 'Football' };
-  const oldSport = sportMapping[oldMemberData.sport] || oldMemberData.sport;
-  const newSport = sportMapping[newMemberData.sport] || newMemberData.sport;
-
-  // Remove all students from old rosters
-  for (const student of oldMemberData.students || []) {
-    const oldRosterId = `${oldSport.toLowerCase()}-${student.ageGroup.toLowerCase()}-${oldMemberData.location.replace(/\s+/g, '-').toLowerCase()}`;
-    await removeStudentFromSpecificRoster(parentId, student, oldRosterId);
-  }
-
-  // Add all students to new rosters
-  for (const student of newMemberData.students || []) {
-    const newRosterId = `${newSport.toLowerCase()}-${student.ageGroup.toLowerCase()}-${newMemberData.location.replace(/\s+/g, '-').toLowerCase()}`;
-    await addStudentToSpecificRoster(parentId, newMemberData, student, newRosterId);
-  }
-};
 
 // Firebase Auth user deletion via API
 export const deleteFirebaseAuthUserByEmail = async (email) => {
@@ -775,7 +654,9 @@ const addStudentToRoster = async (parentId, parentData, student) => {
           parentEmail: parentData.email,
           parentPhone: parentData.phone,
           sport: mappedSport,
-          location: parentData.location
+          location: parentData.location,
+          grade: student.grade || '',
+          grade_band: student.grade_band || getGradeBand(student.grade),
         }
       })
     });
@@ -829,7 +710,9 @@ const addStudentToSpecificRoster = async (parentId, parentData, student, rosterI
           parentEmail: parentData.email,
           parentPhone: parentData.phone,
           sport: parentData.sport,
-          location: parentData.location
+          location: parentData.location,
+          grade: student.grade || '',
+          grade_band: student.grade_band || getGradeBand(student.grade),
         }
       })
     });
@@ -852,80 +735,44 @@ const removeStudentFromSpecificRoster = async (parentId, student, rosterId) => {
   }
 };
 
-// Bulk delete ID records (students/children from parents)
-// This removes multiple children from their respective parent documents
-
+// Bulk delete ID records via API
 export const bulkDeleteIDRecords = async (childIds = []) => {
   try {
-    console.log('🗑️ Starting bulk delete for ID records:', childIds.length, 'children');
-
-    if (!childIds || childIds.length === 0) {
-      throw new Error('No child IDs provided for deletion');
-    }
-
-    // Group child IDs by parent ID
-    const parentChildMap = {};
-    const allMembers = await getMembers();
-
-    for (const member of allMembers) {
-      if (Array.isArray(member.students)) {
-        for (const student of member.students) {
-          if (childIds.includes(student.uid)) {
-            if (!parentChildMap[member.id]) {
-              parentChildMap[member.id] = [];
-            }
-            parentChildMap[member.id].push(student.uid);
-          }
-        }
-      }
-    }
-
-    const parentIds = Object.keys(parentChildMap);
-    console.log('📋 Parents to update:', parentIds.length);
-
-    if (parentIds.length === 0) {
-      throw new Error('No parents found for the provided child IDs');
-    }
-
-    // Use Firestore batch to update all parent documents
-    const batch = writeBatch(db);
-    let totalDeleted = 0;
-
-    for (const parentId of parentIds) {
-      const parentRef = doc(db, 'members', parentId);
-      const parentSnap = await getDoc(parentRef);
-
-      if (!parentSnap.exists()) {
-        console.warn(`⚠️ Parent document ${parentId} not found, skipping`);
-        continue;
-      }
-
-      const parentData = parentSnap.data();
-      const childrenToDelete = parentChildMap[parentId];
-
-      // Filter out the children to be deleted
-      const updatedStudents = (parentData.students || []).filter(
-        student => !childrenToDelete.includes(student.uid)
-      );
-
-      batch.update(parentRef, { students: updatedStudents });
-      totalDeleted += childrenToDelete.length;
-      console.log(`✅ Queued deletion of ${childrenToDelete.length} children from parent ${parentId}`);
-    }
-
-    // Commit the batch
-    await batch.commit();
-    console.log(`🎯 Bulk delete completed: ${totalDeleted} children removed from ${parentIds.length} parents`);
-
-    return {
-      success: true,
-      deletedCount: totalDeleted,
-      updatedParents: parentIds.length,
-      message: `Successfully deleted ${totalDeleted} ID records`
-    };
-
+    console.log('🗑️ Bulk deleting ID records via API:', childIds.length);
+    return await apiCall(`${API_CONFIG.baseURL}/admins/bulk-delete-ids`, {
+      method: 'POST',
+      body: JSON.stringify({ childIds })
+    });
   } catch (error) {
-    console.error('❌ Error in bulk delete ID records:', error);
+    console.error('❌ Error in bulk delete ID records via API:', error);
+    throw error;
+  }
+};
+
+// Batch assign coach to rosters via API
+export const batchAssignCoachToRosters = async (coachId, assignmentData) => {
+  try {
+    console.log('👨‍🏫 Batch assigning coach via API:', coachId);
+    return await apiCall(`${API_CONFIG.baseURL}/admins/coaches/${coachId}/assign-rosters`, {
+      method: 'POST',
+      body: JSON.stringify(assignmentData)
+    });
+  } catch (error) {
+    console.error('❌ Error in batchAssignCoachToRosters via API:', error);
+    throw error;
+  }
+};
+
+// Batch assign players to rosters via API
+export const batchAssignPlayersToRosters = async (parentId, assignments) => {
+  try {
+    console.log('🎯 Batch assigning players via API for parent:', parentId);
+    return await apiCall(`${API_CONFIG.baseURL}/admins/members/${parentId}/assign-players`, {
+      method: 'POST',
+      body: JSON.stringify({ assignments })
+    });
+  } catch (error) {
+    console.error('❌ Error in batchAssignPlayersToRosters via API:', error);
     throw error;
   }
 };

@@ -6,7 +6,7 @@ import { uploadChildImage } from '../mychild/utils/uploadImage.js';
 import childImagePlaceholder from '../../assets/child.jpg';
 import { FaCamera, FaFilePdf, FaPlus, FaTimes } from 'react-icons/fa';
 import Logo from '../../assets/YAU_Logo.png';
-import { collection, doc, getDoc, updateDoc } from "firebase/firestore";
+import { collection, doc } from "firebase/firestore";
 import { db } from "../../firebase/config.js";
 // import AddChildModal from "../mychild/components/AddChild.jsx";
 import { deleteStudentDoc } from "../mychild/utils/deleteChild.js";
@@ -105,30 +105,23 @@ function ChildrenTable({ memberId, childrenList, onViewChild, onAddChild, onDele
   );
 }
 
-async function updateStudentDocUrl(memberId, childUid, url, fileType) {
-  const parentRef = doc(db, "members", memberId);
-  const parentSnap = await getDoc(parentRef);
-
-  if (!parentSnap.exists()) throw new Error("Parent not found");
-
-  const parentData = parentSnap.data();
-
-  const updatedStudents = parentData.students.map((student) =>
+async function updateStudentDocUrl(memberId, childUid, url, fileType, currentStudents) {
+  const updatedStudents = currentStudents.map((student) =>
     student.uid === childUid
       ? {
           ...student,
           governmentIdUrl: url,
           governmentIdUrl_filetype: fileType,
           idStatus: "pending",
-          updatedAt: new Date()
+          updatedAt: new Date().toISOString()
         }
       : student
   );
 
-  await updateDoc(parentRef, { students: updatedStudents });
+  await updateMember(memberId, { students: updatedStudents });
 }
 
-function UploadExistingID({ childId, memberId, onSubmit }) {
+function UploadExistingID({ childId, memberId, onSubmit, currentStudents }) {
   const inputRef = useRef(null);
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -165,7 +158,7 @@ function UploadExistingID({ childId, memberId, onSubmit }) {
       if (!url) throw new Error("Upload returned no URL");
 
       const extension = file.type === "application/pdf" ? "pdf" : file.type.split("/")[1];
-      await updateStudentDocUrl(memberId, childId, url, extension);
+      await updateStudentDocUrl(memberId, childId, url, extension, currentStudents);
 
       onSubmit?.(url);
       alert("Submitted for approval ✅");
@@ -295,7 +288,7 @@ function IDCard({ status, child }) {
   return null;
 }
 
-function ChildDetail({ child, memberId, onBack, onUploaded }) {
+function ChildDetail({ child, memberId, onBack, onUploaded, currentStudents }) {
   const [showReuploadForm, setShowReuploadForm] = useState(false);
   const [reuploadType, setReuploadType] = useState(null);
   const [uploadedFiles, setUploadedFiles] = useState({
@@ -343,7 +336,8 @@ function ChildDetail({ child, memberId, onBack, onUploaded }) {
           child.id,
           "birthCertificateUrl",
           birthCertUrl,
-          uploadedFiles.birthCertificate.type === "application/pdf" ? "pdf" : "image"
+          uploadedFiles.birthCertificate.type === "application/pdf" ? "pdf" : "image",
+          currentStudents
         );
       }
 
@@ -352,10 +346,10 @@ function ChildDetail({ child, memberId, onBack, onUploaded }) {
           uploadedFiles.headshot,
           `child-headshots/${child.id}`
         );
-        await updateStudentDocField(memberId, child.id, "headshotUrl", headshotUrl, "image");
+        await updateStudentDocField(memberId, child.id, "headshotUrl", headshotUrl, "image", currentStudents);
       }
 
-      await updateStudentStatus(memberId, child.id, "pending");
+      await updateStudentStatus(memberId, child.id, "pending", currentStudents);
 
       alert("Documents re-uploaded successfully! Status changed to pending review.");
       onUploaded();
@@ -622,8 +616,8 @@ function ChildDetail({ child, memberId, onBack, onUploaded }) {
 
       {child.status === "unverified" && (
         <div className="grid md:grid-cols-2 gap-6">
-          <UploadExistingID childId={child.id} memberId={memberId} onSubmit={onUploaded} />
-          <PurchaseLeagueID child={child} memberId={memberId} onSubmit={onUploaded} />
+          <UploadExistingID childId={child.id} memberId={memberId} onSubmit={onUploaded} currentStudents={currentStudents} />
+          <PurchaseLeagueID child={child} memberId={memberId} onSubmit={onUploaded} currentStudents={currentStudents} />
         </div>
       )}
 
@@ -714,48 +708,36 @@ function FileUploadButton({ label, onFileSelect, acceptedFile, accept = "image/*
   );
 }
 
-async function updateStudentDocField(memberId, childUid, fieldName, url, fileType = null) {
-  const parentRef = doc(db, "members", memberId);
-  const parentSnap = await getDoc(parentRef);
-
-  if (!parentSnap.exists()) throw new Error("Parent not found");
-
-  const parentData = parentSnap.data();
-  const updatedStudents = parentData.students.map((student) =>
+async function updateStudentDocField(memberId, childUid, fieldName, url, fileType = null, currentStudents) {
+  const updatedStudents = currentStudents.map((student) =>
     student.uid === childUid
       ? {
           ...student,
           [fieldName]: url,
           ...(fileType && { [`${fieldName}_filetype`]: fileType }),
-          updatedAt: new Date()
+          updatedAt: new Date().toISOString()
         }
       : student
   );
 
-  await updateDoc(parentRef, { students: updatedStudents });
+  await updateMember(memberId, { students: updatedStudents });
 }
 
-async function updateStudentStatus(memberId, childUid, status) {
-  const parentRef = doc(db, "members", memberId);
-  const parentSnap = await getDoc(parentRef);
-
-  if (!parentSnap.exists()) throw new Error("Parent not found");
-
-  const parentData = parentSnap.data();
-  const updatedStudents = parentData.students.map((student) =>
+async function updateStudentStatus(memberId, childUid, status, currentStudents) {
+  const updatedStudents = currentStudents.map((student) =>
     student.uid === childUid
       ? {
           ...student,
           idStatus: status,
-          updatedAt: new Date()
+          updatedAt: new Date().toISOString()
         }
       : student
   );
 
-  await updateDoc(parentRef, { students: updatedStudents });
+  await updateMember(memberId, { students: updatedStudents });
 }
 
-function AddChildModal({ isOpen, onClose, onAddChild, memberId }) {
+function AddChildModal({ isOpen, onClose, onAddChild, memberId, currentStudents }) {
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -815,15 +797,6 @@ function AddChildModal({ isOpen, onClose, onAddChild, memberId }) {
 
     setIsSubmitting(true);
     try {
-      const parentRef = doc(db, "members", memberId);
-      const parentSnap = await getDoc(parentRef);
-      
-      if (!parentSnap.exists()) {
-        throw new Error("Member not found");
-      }
-
-      const parentData = parentSnap.data();
-      
       const newChild = {
         uid: doc(collection(db, "students")).id,
         firstName: formData.firstName.trim(),
@@ -831,14 +804,14 @@ function AddChildModal({ isOpen, onClose, onAddChild, memberId }) {
         dob: dayjs(formData.dob).format("MM-DD-YYYY"),
         ageGroup: calculateAgeGroup(formData.dob),
         idStatus: "unverified",
-        createdAt: new Date(),
+        createdAt: new Date().toISOString(),
         uniformTop: "",
         uniformBottom: ""
       };
 
-      const updatedStudents = [...(parentData.students || []), newChild];
+      const updatedStudents = [...(currentStudents || []), newChild];
       
-      await updateDoc(parentRef, { students: updatedStudents });
+      await updateMember(memberId, { students: updatedStudents });
       
       onAddChild(newChild);
       onClose();
@@ -972,6 +945,7 @@ export default function ChildID() {
   const [view, setView] = useState("table");
   const [selectedChild, setSelectedChild] = useState(null);
   const [memberId, setMemberId] = useState(null);
+  const [parentStudents, setParentStudents] = useState([]); // Raw students from DB
   const [childrenList, setChildrenList] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
 
@@ -982,9 +956,11 @@ export default function ChildID() {
       const parentData = await getCurrentUserData(user.email);
       if (parentData) {
         setMemberId(parentData.id);
+        const students = parentData.students || [];
+        setParentStudents(students);
 
-        if (parentData.students) {
-          const formattedChildren = parentData.students.map((student) => ({
+        if (students.length > 0) {
+          const formattedChildren = students.map((student) => ({
             id: student.uid,
             name: `${student.firstName || ""} ${student.lastName || ""}`.trim(),
             firstName: student.firstName || "",
@@ -1099,6 +1075,7 @@ export default function ChildID() {
               await fetchChildren();
               setView("table");
             }}
+            currentStudents={parentStudents}
           />
         )}
       </AnimatePresence>
@@ -1108,6 +1085,7 @@ export default function ChildID() {
         onClose={() => setShowAddModal(false)}
         onAddChild={handleChildAdded}
         memberId={memberId}
+        currentStudents={parentStudents}
       />
     </div>
   );

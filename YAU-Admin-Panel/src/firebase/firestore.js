@@ -10,7 +10,7 @@ export const COLLECTIONS = {
 };
 
 // Helper function for API calls
-const apiCall = async (url, options = {}) => {
+export const apiCall = async (url, options = {}) => {
   try {
     const response = await fetch(url, {
       headers: {

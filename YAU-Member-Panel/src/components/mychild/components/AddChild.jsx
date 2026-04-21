@@ -5,18 +5,10 @@ import { motion, AnimatePresence } from "framer-motion";
 // import { getCurrentUserData, updateMember } from "../../firebase/apis/api-members.js";
 // src\firebase\apis\api-members.js
 // src\components\mychild\components\AddChild.jsx
-import { updateMember } from "../../../firebase/apis/api-members.js";
-// import { uploadChildImage } from "../mychild/utils/uploadImage";
-// import childImagePlaceholder from '../../assets/child.jpg';
+import { getMemberById, updateMember } from "../../../firebase/apis/api-members.js";
 import { FaCamera, FaPlus, FaTimes } from 'react-icons/fa';
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs from "dayjs";
-
-import { collection, doc, getDoc, updateDoc } from "firebase/firestore"; 
-import { db } from "../../../firebase/config.js";
-
-
-
 
 function AddChildModal({ isOpen, onClose, onAddChild, memberId }) {
   const [formData, setFormData] = useState({
@@ -112,17 +104,21 @@ function AddChildModal({ isOpen, onClose, onAddChild, memberId }) {
     setIsSubmitting(true);
     try {
       // Get current parent data
-      const parentData = await getCurrentUserDataByMemberId(memberId);
+      const parentData = await getMemberById(memberId);
       
+      if (!parentData) {
+        throw new Error("Parent data not found");
+      }
+
       // Create new child object
       const newChild = {
-        uid: doc(collection(db, "students")).id,
+        id: `${memberId}-${formData.firstName.trim()}`, // Generate a simple ID or have backend handle it
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
         dob: dayjs(formData.dob).format("MM-DD-YYYY"),
         ageGroup: calculateAgeGroup(formData.dob),
         idStatus: "unverified",
-        createdAt: new Date(),
+        createdAt: new Date().toISOString(),
         uniformTop: "",
         uniformBottom: ""
       };
@@ -260,18 +256,5 @@ function AddChildModal({ isOpen, onClose, onAddChild, memberId }) {
     </div>
   );
 }
-
-// Helper function to get user data by member ID
-async function getCurrentUserDataByMemberId(memberId) {
-  const memberRef = doc(db, "members", memberId);
-  const memberSnap = await getDoc(memberRef);
-  
-  if (!memberSnap.exists()) {
-    throw new Error("Member not found");
-  }
-  
-  return memberSnap.data();
-}
-
 
 export default AddChildModal;

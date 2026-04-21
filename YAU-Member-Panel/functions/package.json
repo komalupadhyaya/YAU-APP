@@ -15,6 +15,7 @@
     "@azure/msal-common": "^16.0.4",
     "@azure/msal-node": "^5.0.4",
     "@google-cloud/storage": "^7.17.0",
+    "firebase-functions": "^6.6.0",
     "@microsoft/microsoft-graph-client": "^3.0.7",
     "axios": "^1.13.2",
     "busboy": "^1.6.0",

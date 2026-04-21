@@ -1,8 +1,47 @@
 const twilioService = require('../services/twilioService');
 const EmailService = require('../services/emailService');
+const CoachAssignmentsService = require('../services/coachAssignmentsService');
 const admin = require('firebase-admin');
 
 class CoachAssignmentsController {
+  static async getAssignments(req, res) {
+    try {
+      const assignments = await CoachAssignmentsService.getAssignments();
+      res.status(200).json({ success: true, data: assignments });
+    } catch (error) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+
+  static async createAssignment(req, res) {
+    try {
+      const id = await CoachAssignmentsService.createAssignment(req.body);
+      res.status(201).json({ success: true, data: { id } });
+    } catch (error) {
+      res.status(400).json({ success: false, error: error.message });
+    }
+  }
+
+  static async updateAssignment(req, res) {
+    try {
+      const { id } = req.params;
+      await CoachAssignmentsService.updateAssignment(id, req.body);
+      res.status(200).json({ success: true, message: 'Assignment updated' });
+    } catch (error) {
+      res.status(400).json({ success: false, error: error.message });
+    }
+  }
+
+  static async deleteAssignment(req, res) {
+    try {
+      const { id } = req.params;
+      await CoachAssignmentsService.deleteAssignment(id);
+      res.status(200).json({ success: true, message: 'Assignment deleted' });
+    } catch (error) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+
   static async sendNotification(req, res) {
     try {
       const { assignmentId, coachId } = req.body;

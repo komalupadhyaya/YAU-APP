@@ -1,4 +1,4 @@
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { updateMember } from "../firebase/apis/api-parents";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import html2canvas from 'html2canvas';
 import { jsPDF } from "jspdf";
@@ -156,17 +156,31 @@ export const generateAndSaveIDCard = async (childData, parentId, format = 'both'
         console.log('PDF uploaded successfully');
       }
 
-      // Update Firebase document
-      const parentRef = doc(db, "members", parentId);
-      const parentSnap = await getDoc(parentRef);
-      if (parentSnap.exists()) {
-        const parentData = parentSnap.data();
-        const updatedStudents = parentData.students.map(student =>
+      // Update Firebase document via API
+      console.log('🔄 Syncing generated ID URL to member via API...');
+      const parent = await updateMember(parentId, { 
+        students: (await import("../firebase/apis/api-parents")).getMemberById(parentId).then(m => 
+          m.students.map(student =>
+            student.uid === id
+              ? { ...student, generatedIdUrl: pngUrl }
+              : student
+          )
+        )
+      });
+      
+      // Actually, since I already have parentId and id, and I just need to update one student,
+      // the backend updateMember handles partial updates or I can fetch and update.
+      // Let's simplify: fetch parent first, then update students array.
+      
+      const { getMemberById } = await import("../firebase/apis/api-parents");
+      const member = await getMemberById(parentId);
+      if (member) {
+        const updatedStudents = member.students.map(student =>
           student.uid === id
             ? { ...student, generatedIdUrl: pngUrl }
             : student
         );
-        await updateDoc(parentRef, { students: updatedStudents });
+        await updateMember(parentId, { students: updatedStudents });
       }
 
       return { png: pngUrl, pdf: pdfUrl };

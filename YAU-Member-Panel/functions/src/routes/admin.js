@@ -19,4 +19,8 @@ router.put('/:adminId/password', AdminController.updateAdminPassword);
 router.patch('/:adminId/deactivate', AdminController.deactivateAdmin);
 router.delete('/:adminId', AdminController.deleteAdmin);
 
+// Batch assignment routes
+router.post('/coaches/:coachId/assign-rosters', AdminController.batchAssignCoachToRosters);
+router.post('/members/:parentId/assign-players', AdminController.batchAssignPlayersToRosters);
+
 module.exports = router;

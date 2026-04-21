@@ -337,6 +337,20 @@ const GRADE_OPTIONS = [
   { value: "8th Grade", label: "8th Grade" },
 ];
 
+const GRADE_BAND_MAP = {
+  'Kindergarten': 'Band 1',
+  '1st Grade': 'Band 1',
+  '2nd Grade': 'Band 2',
+  '3rd Grade': 'Band 2',
+  '4th Grade': 'Band 3',
+  '5th Grade': 'Band 3',
+  '6th Grade': 'Band 4',
+  '7th Grade': 'Band 4',
+  '8th Grade': 'Band 4',
+};
+
+const getGradeBand = (grade) => GRADE_BAND_MAP[grade] || null;
+
 // School options (searchable)
 const SCHOOL_OPTIONS = [
   "John Hanson",
@@ -1051,8 +1065,9 @@ export default function Registration() {
               firstName: child.firstName,
               lastName: child.lastName,
               dob: ConvertYYMMDD(child.dob),
-              ageGroup: calculateAgeGroup(child.dob), // Keep for backward compatibility
+               ageGroup: calculateAgeGroup(child.dob), // Keep for backward compatibility
               grade: child.grade || "",
+              grade_band: getGradeBand(child.grade),
               school_name: child.school_name || "",
               sport: child.sport?.toUpperCase() || "",
               location: child.location || "",

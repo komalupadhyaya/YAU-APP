@@ -59,6 +59,17 @@ class GameScheduleController {
     }
   }
 
+  static async reportScore(req, res) {
+    try {
+      const { id } = req.params;
+      const resultId = await GameScheduleService.reportScore(id, req.body);
+      res.status(200).json({ success: true, data: { id: resultId } });
+    } catch (error) {
+      console.error("Error reporting score:", error);
+      res.status(400).json({ success: false, error: error.message });
+    }
+  }
+
   /**
    * Bulk delete schedules by ids OR by filters.
    *

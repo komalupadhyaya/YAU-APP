@@ -13,6 +13,8 @@ const {
   orderBy,
   serverTimestamp,
 } = require("firebase/firestore");
+const axios = require("axios");
+const MemberService = require("./memberService");
 
 class MessageService {
   static async getMessages() {
@@ -58,10 +60,75 @@ class MessageService {
         timestamp: serverTimestamp(),
         read: false,
       });
+
+      // Execute push notification logic without blocking the return
+      this.sendPushNotifications(messageData).catch((err) => {
+        console.error("Error sending push notifications for message:", err);
+      });
+
       return docRef.id;
     } catch (error) {
       console.error("Error adding message:", error);
       throw error;
+    }
+  }
+
+  static async sendPushNotifications(messageData) {
+    try {
+      console.log('📱 Preparing to send admin push notification...');
+      const allMembers = await MemberService.getMembers();
+      
+      const { targetAgeGroup, targetLocation, targetSport, title, description } = messageData;
+
+      // Filter members based on targeting criteria
+      // Note: Admin messages may use "all" to bypass a filter
+      const eligibleUsers = allMembers.filter(member => {
+        // Evaluate location filter
+        const locationMatch = targetLocation === "all" || member.location === targetLocation;
+        // Evaluate sport filter
+        const sportMatch = targetSport === "all" || member.sport === targetSport;
+
+        // Evaluate age group filter - check if any of the member's students match the age group
+        const ageGroupMatch = targetAgeGroup === "all" || 
+            (member.students && member.students.some(student => student.ageGroup === targetAgeGroup || student.grade_band === targetAgeGroup));
+
+        return locationMatch && sportMatch && ageGroupMatch;
+      });
+
+      // Extract valid Expo Push Tokens
+      const pushTokens = eligibleUsers
+        .map(user => user.expoPushToken)
+        .filter(token => Boolean(token));
+
+      // Remove duplicates
+      const uniquePushTokens = [...new Set(pushTokens)];
+
+      if (uniquePushTokens.length === 0) {
+        console.log('ℹ️ No push tokens found for targeted audience. Notification skipped.');
+        return;
+      }
+
+      console.log(`📤 Sending push notification to ${uniquePushTokens.length} recipients...`);
+
+      const expoMessage = {
+        to: uniquePushTokens,
+        sound: 'default',
+        title: title || 'New Message from YAU',
+        body: description || 'You have a new message from the administrator.',
+        data: { route: 'messages' },
+      };
+
+      const expoResponse = await axios.post('https://exp.host/--/api/v2/push/send', expoMessage, {
+        headers: {
+          'Accept': 'application/json',
+          'Accept-encoding': 'gzip, deflate',
+          'Content-Type': 'application/json',
+        }
+      });
+      console.log('✅ Expo push notification dispatched:', expoResponse.data);
+
+    } catch (error) {
+      console.error("❌ Failed to send push notifications:", error);
     }
   }
 

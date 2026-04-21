@@ -26,8 +26,8 @@ export const storage = getStorage(app);
 export const API_CONFIG = {
   // FIXED: Remove the extra /api from baseURL since we add it in endpoints
   baseURL: process.env.NODE_ENV === "development"
-    ? 'http://127.0.0.1:5001/yau-app/us-central1/apis'
-    : 'https://yau-app.onrender.com',
+    ? 'https://us-central1-yau-app.cloudfunctions.net/apis'
+    : 'https://us-central1-yau-app.cloudfunctions.net/apis',
 
   endpoints: {
 
@@ -125,6 +125,15 @@ export const API_CONFIG = {
       bulkUpdate: '/coaches/bulk-update',
       bulkDelete: '/coaches/bulk',
       search: '/coaches/search'
+    },
+
+    // Coach Assignment endpoints (for staff/staff slots)
+    coachAssignments: {
+      getAll: '/admin/coach-assignments',
+      create: '/admin/coach-assignments',
+      update: '/admin/coach-assignments/:id',
+      delete: '/admin/coach-assignments/:id',
+      notify: '/admin/coach-assignments/notify'
     },
 
     // Member endpoints
@@ -235,7 +244,8 @@ export const API_CONFIG = {
       delete: '/game-schedules/:id',
       bulkDelete: '/game-schedules/bulk-delete',
       sendNotification: '/game-schedules/notifications/send',
-      getRecipients: '/game-schedules/notifications/recipients'
+      getRecipients: '/game-schedules/notifications/recipients',
+      reportScore: '/game-schedules/:id/report-score'
     },
 
     // File Upload endpoints

@@ -2,9 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import Button from '../common/Button';
 import Modal from '../common/Modal';
-import { uploadBytes, ref, getDownloadURL } from 'firebase/storage';
-import { db } from '../../firebase/config';
-import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { submitChildID, uploadFileToStorage } from '../../firebase/apis/api-parents';
 import { User, Image, FileText, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 
 const ParentIDCreation = () => {
@@ -34,27 +32,22 @@ const ParentIDCreation = () => {
 
     setLoading(true);
     try {
-      // Upload headshot
-      const headshotRef = ref(db.storage, `parents/${user.id}/ids/${selectedChild.uid}/headshot.jpg`);
-      await uploadBytes(headshotRef, files.headshot);
-      const headshotUrl = await getDownloadURL(headshotRef);
-
-      // Upload birth cert
-      const birthRef = ref(db.storage, `parents/${user.id}/ids/${selectedChild.uid}/birth-cert.pdf`);
-      await uploadBytes(birthRef, files.birthCert);
-      const birthUrl = await getDownloadURL(birthRef);
-
-      // Update child record
-      const parentRef = doc(db, 'members', user.id);
-      await updateDoc(parentRef, {
-        [`students.${selectedChild.uid}.headshotUrl`]: headshotUrl,
-        [`students.${selectedChild.uid}.birthCertificateUrl`]: birthUrl,
-        [`students.${selectedChild.uid}.idStatus`]: 'submitted',
-        [`students.${selectedChild.uid}.submittedAt`]: new Date(),
-        [`students.${selectedChild.uid}.idPayment`]: {
+      // Upload headshot using API logic
+      const headshotPath = `parents/${user.id}/ids/${selectedChild.uid}/headshot.jpg`;
+      const headshotUrl = await uploadFileToStorage(headshotPath, files.headshot);
+ 
+      // Upload birth cert using API logic
+      const birthPath = `parents/${user.id}/ids/${selectedChild.uid}/birth-cert.pdf`;
+      const birthUrl = await uploadFileToStorage(birthPath, files.birthCert);
+ 
+      // Submit child record via API
+      await submitChildID(selectedChild.uid, user.id, {
+        headshotUrl,
+        birthCertificateUrl: birthUrl,
+        idPayment: {
           amount: 1000, // $10
           status: 'paid', 
-          timestamp: new Date()
+          timestamp: new Date().toISOString()
         }
       });
 

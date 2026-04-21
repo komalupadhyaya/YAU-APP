@@ -2,33 +2,25 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FaCamera, FaFilePdf, FaImage, FaCheck, FaCreditCard, FaLock, FaSpinner } from 'react-icons/fa';
 import { uploadChildImage } from "../utils/uploadImage";
-import { updateDoc, doc, getDoc } from "firebase/firestore";
-import { db } from "../../../firebase/config.js";
 import { useAuth } from "../../../context/AuthContext";
 import { APIClient } from "../../../firebase/ApiClient.js";
+import { updateMember } from "../../../firebase/apis/api-members.js";
 
 // Update student document with purchase league ID data
-async function updateStudentForLeagueId(memberId, childUid, data) {
-  const parentRef = doc(db, "members", memberId);
-  const parentSnap = await getDoc(parentRef);
-
-  if (!parentSnap.exists()) throw new Error("Parent not found");
-
-  const parentData = parentSnap.data();
-
-  const updatedStudents = parentData.students.map((student) =>
+async function updateStudentForLeagueId(memberId, childUid, data, currentStudents) {
+  const updatedStudents = currentStudents.map((student) =>
     student.uid === childUid
       ? {
           ...student,
           ...data,
           idStatus: "pending",
           leagueIdPurchased: true,
-          updatedAt: new Date()
+          updatedAt: new Date().toISOString()
         }
       : student
   );
 
-  await updateDoc(parentRef, { students: updatedStudents });
+  await updateMember(memberId, { students: updatedStudents });
 }
 
 // Simple Child ID Payment Component
@@ -282,7 +274,7 @@ const ChildIdPaymentForm = ({ amount, childName, user, onSuccess, onError, onCan
 };
 
 
-function PurchaseLeagueID({ child, memberId, onSubmit }) {
+function PurchaseLeagueID({ child, memberId, onSubmit, currentStudents }) {
   const { user } = useAuth();
   const [busy, setBusy] = useState(false);
   const [step, setStep] = useState('upload'); // 'upload' or 'payment'
@@ -355,14 +347,14 @@ function PurchaseLeagueID({ child, memberId, onSubmit }) {
       
       const headshotExt = headshotFile.type.split("/")[1];
 
-      // Save to Firestore
+      // Save to API
       await updateStudentForLeagueId(memberId, child.id, {
         birthCertificateUrl: birthCertUrl,
         birthCertificateUrl_filetype: birthCertExt,
         headshotUrl: headshotUrl,
         headshotUrl_filetype: headshotExt,
-        leagueIdRequestDate: new Date()
-      });
+        leagueIdRequestDate: new Date().toISOString()
+      }, currentStudents);
 
       // Move to payment step
       setStep('payment');
@@ -385,11 +377,11 @@ function PurchaseLeagueID({ child, memberId, onSubmit }) {
           currency: "usd",
           status: "succeeded",
           paymentIntentId: paymentResult.paymentIntentId || paymentResult.id,
-          paidAt: new Date()
+          paidAt: new Date().toISOString()
         },
         idStatus: "active", // Set child status to active after payment
-        statusUpdatedAt: new Date()
-      });
+        statusUpdatedAt: new Date().toISOString()
+      }, currentStudents);
       
       setPaymentSuccess(true);
       setTimeout(() => {
